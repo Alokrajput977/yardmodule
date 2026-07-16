@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git stash *)",
+      "Bash(npx eslint *)",
+      "Bash(node -e ' *)",
+      "Bash(taskkill //F //IM node.exe //FI \"WINDOWTITLE eq *\")",
+      "Bash(netstat -ano)",
+      "Skill(run)",
+      "Bash(node -e \"require.resolve\\('playwright'\\)\")",
+      "Bash(npx --yes playwright --version)",
+      "Bash(npx playwright *)",
+      "Bash(node __verify_run.mjs http://localhost:5184/)",
+      "Bash(rm -f __verify_run.mjs __verify_initial.png __verify_hover.png __verify_after_click.png __verify_error.png)",
+      "Bash(taskkill //PID 28684 //F)",
+      "Bash(npx vite *)",
+      "Bash(node __verify_drawcalls.mjs http://localhost:5186/)",
+      "Bash(node __verify_bounds.mjs http://localhost:5187/)",
+      "Bash(node __verify_farplane.mjs http://localhost:5188/)",
+      "Bash(node __verify_camdist.mjs http://localhost:5188/)",
+      "Bash(node __verify_camdist2.mjs http://localhost:5188/)",
+      "Bash(taskkill //PID 26512 //F)",
+      "Bash(rm -f __verify_farplane.mjs __verify_farplane_zoomedout.png __verify_farplane_buggy.png __verify_camdist.mjs __verify_camdist.png __verify_camdist2.mjs __verify_camdist2.png)",
+      "Bash(rm -f /tmp/fixed_App2.jsx)",
+      "Bash(node __cam_test.mjs -196 1600 573 -196 0 73)",
+      "Bash(node __cam_test.mjs 237 1600 323 -196 0 73)",
+      "Bash(node __cam_test.mjs 269 1200 85 -100 0 150)",
+      "Bash(node __cam_test.mjs 268 1360 76 -150 0 150)",
+      "Bash(node __verify_pan.mjs http://localhost:5190/)",
+      "Bash(node __verify_pan2.mjs http://localhost:5190/)",
+      "Bash(node __verify_pan3.mjs http://localhost:5190/)",
+      "Bash(node __verify_pan_omni.mjs http://localhost:5190/)",
+      "Bash(node __verify_jitter.mjs http://localhost:5191/)",
+      "Bash(node __verify_final.mjs http://localhost:5191/)",
+      "Bash(node __verify_scenecount.mjs http://localhost:5191/)"
+    ]
+  }
+}

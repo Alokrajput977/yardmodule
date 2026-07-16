@@ -1,0 +1,76 @@
+/* Container to hold the canvas perfectly full screen or within its parent */
+.warehouse-container {
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+  background-color: #1a1a1a;
+  overflow: hidden;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Glassmorphism UI Panel */
+.warehouse-ui {
+  position: absolute;
+  top: 30px;
+  left: 30px;
+  background: rgba(20, 24, 30, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 25px 30px;
+  border-radius: 16px;
+  color: #E2E8F0;
+  z-index: 10;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+  pointer-events: none; /* Let clicks pass through to the 3D canvas */
+  min-width: 250px;
+}
+
+.warehouse-ui h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: #FFFFFF;
+}
+
+.ui-divider {
+  height: 2px;
+  background: linear-gradient(90deg, #4A90E2 0%, transparent 100%);
+  margin: 15px 0;
+  width: 100%;
+}
+
+.ui-stats p {
+  margin: 12px 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: #94A3B8;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ui-stats span {
+  font-weight: 600;
+  color: #FFFFFF;
+}
+
+/* Specific UI Highlights */
+.ui-stats span.highlight {
+  color: #4A90E2;
+}
+
+.ui-stats span.status-green {
+  color: #10B981;
+  background: rgba(16, 185, 129, 0.15);
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+/* Make sure the canvas completely fills the container */
+canvas {
+  display: block;
+  outline: none;
+}

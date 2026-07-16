@@ -1,0 +1,519 @@
+3D YARD — LAG ANALYSIS & FIX PLAN
+==================================
+Scope analyzed: src/App.jsx (1270 lines, whole app in one file),
+public/slots.json (7,524 slot polygons), public/csvjson.json (4,612 container
+rows, currently NOT loaded — fetch is commented out), public/container.json.
+Stack: react-three-fiber 9 + three 0.184 + drei, polling every 5s.
+
+ROOT CAUSES (ranked by impact)
+-------------------------------
+
+1. 7,524 separate <Slot3D> meshes, each its own draw call (BIGGEST ISSUE)
+   - App.jsx ~1228: `slots.map(...) => <Slot3D .../>)`.
+   - Each Slot3D builds its own THREE.Shape -> extrudeGeometry -> its own
+     meshStandardMaterial, with receiveShadow=true and onPointerOver/Out
+     handlers registered individually.
+   - Result: 7,500+ WebGL draw calls every frame, plus the R3F raycaster
+     must hit-test ~7,500 individual mesh objects on every single
+     pointermove event (yard pan/hover), plus 7,500 objects in the shadow
+     depth pass. This alone is enough to tank FPS on any device, GPU or not
+     — it's a CPU-bound draw-call/raycast problem, not a GPU shading problem
+     (explains why it lags "even on GPU").
+
+2. Slot polling recreates all 7,524 shapes every 5 seconds
+   - App.jsx ~1078-1082: setInterval(fetchYardData, 5000) calls
+     setSlots(validSlots) with a brand-new array/objects parsed from JSON
+     every time, even though the yard layout almost never changes.
+   - Slot3D's `shape = useMemo(..., [slot, center])` depends on the slot
+     object reference, so every poll invalidates the memo for all 7,524
+     slots and rebuilds every THREE.Shape + extrudeGeometry from scratch.
+   - This produces a periodic, predictable stutter/freeze every 5s — a
+     classic symptom of "lags every few seconds" that matches "open from
+     any device."
+
+3. Containers (when enabled) duplicate textures/materials per-instance
+   - Container3D (line ~689) does
+     `useMemo(() => createContainerTexture(color, isDark), [color, isDark])`
+     and creates its own `material`/`hoverMaterial` per component instance.
+   - There are only ~15 distinct shipping-line colors, but csvjson.json has
+     4,612 rows. If/when that fetch is re-enabled (it's currently commented
+     out in fetchYardData), this creates up to 4,612 independent 512x512
+     canvas textures + materials instead of ~15 shared ones — multiple GB
+     of duplicated GPU texture memory and thousands of redundant canvas
+     draws on every mount.
+
+4. No InstancedMesh / geometry merging anywhere
+   - Repeated static geometry (parking spot stripes, parking barriers,
+     wall pillars/segments, track poles/signals, crane parts, container
+     boxes) are each emitted as individual <mesh> JSX elements -> individual
+     draw calls. None of this uses THREE.InstancedMesh or merged
+     BufferGeometry, so draw-call count balloons even before slots/
+     containers are counted.
+
+5. Per-mesh pointer event handlers everywhere
+   - Nearly every component (Slot3D, Container3D, Warehouse3D, gates,
+     parking, RST, etc.) registers onPointerOver/onPointerOut and uses
+     local useState for hover. R3F's raycaster walks the whole interactive
+     object graph on pointermove; combined with #1 this means thousands of
+     ray-vs-mesh tests per mouse move frame.
+
+6. Full continuous render loop (frameloop="always" default)
+   - <Canvas> never sets `frameloop="demand"`, so three.js re-renders every
+     animation frame forever — even when the camera/scene is fully static
+     and nothing changed — multiplying the cost of all of the above by the
+     monitor refresh rate (60fps+) instead of only rendering on input.
+
+7. Heavy shadow casting on a huge static scene
+   - shadow-mapSize [2048,2048] on the sun light, with castShadow/
+     receiveShadow set on slots, containers, walls, gates, cranes, track
+     poles, etc. Every shadow caster adds to the depth pre-pass, compounding
+     #1 and #4 (this is real GPU cost, but it's secondary to the draw-call/
+     raycast problem above).
+
+8. Everything lives in one 1,270-line App.jsx
+   - All geometry/material objects for static structures (walls, gates,
+     warehouses, cranes, track) are rebuilt as new JSX/material instances
+     whenever their parent re-renders (e.g. on isDark toggle), not just on
+     mount. Not the main lag cause, but adds avoidable GC churn and makes
+     it hard to isolate/fix the items above safely.
+
+FIX PLAN (in priority order)
+-----------------------------
+
+[x] FIX 1 — Stop the periodic full-scene rebuild (DONE)
+  [x] Split data fetching: fetch slots.json ONCE on mount (layout is
+      static), do not re-fetch it on the 5s interval. Only poll whatever
+      endpoint represents live container/occupancy data.
+      -> Implemented in src/App.jsx: fetchSlots() runs once in its own
+         useEffect (mount only); fetchContainers() is the only thing on the
+         5s setInterval (currently a no-op since csvjson fetch is still
+         disabled upstream, ready to wire up live data without touching
+         slots state). Slots are no longer re-fetched/replaced every 5s, so
+         Slot3D's per-slot shape useMemo is no longer invalidated on a
+         timer.
+  [ ] (deferred) Diff against previous data before calling setContainers
+      once a real live endpoint exists, to skip state updates when nothing
+      changed. Not needed yet since containers aren't polled from a live
+      source.
+
+[x] FIX 2 — Collapse 7,524 slot meshes into one (or a handful of) draw calls (DONE)
+  [x] Replace per-slot <mesh><extrudeGeometry/></mesh> with a single merged
+      BufferGeometry (three/examples/jsm/utils/BufferGeometryUtils
+      mergeGeometries) built once in a useMemo keyed on [slots, center],
+      rendered as ONE mesh with ONE material.
+      -> Implemented in src/App.jsx: removed Slot3D, added MergedSlots.
+         Builds one THREE.ExtrudeGeometry per slot (as before), tags each
+         with a "color" attribute, merges all of them via mergeGeometries
+         into a single BufferGeometry, then disposes the per-slot temp
+         geometries. Note: ExtrudeGeometry is non-indexed (no geo.index),
+         so triangle ranges are derived from position.count/3, not
+         index.count/3 — this tripped a "Cannot read properties of null
+         (reading 'count')" runtime error on first pass, fixed.
+  [x] Implement hover/click via raycast `face index -> slot index` lookup
+      (store a groups/userData array mapping triangle ranges to slot ids)
+      instead of one onPointerOver per slot. Highlight the hovered slot by
+      writing to a per-vertex color attribute (vertexColors) instead of
+      swapping materials.
+      -> findSlotRangeIndex() binary-searches a precomputed
+         {vertStart,vertEnd,triStart,triEnd,slot} table per slot using
+         the raycast event's faceIndex. Hover repaints only the affected
+         slot's vertex range (previous slot back to base, new slot to
+         hover color) instead of touching the whole buffer.
+  [x] This turns 7,524 draw calls + 7,524 raycast targets into 1 draw call
+      + 1 raycast target — the single highest-impact change available.
+  [x] Verified: production build succeeds, app loads with 0 console/page
+      errors, slot grid renders correctly, hover sets pointer cursor,
+      click resolves the correct slot (tested: clicked slot "M1:30:21",
+      info card correctly showed "Path Vertices: 5") — confirms the
+      faceIndex -> slot mapping is correct end-to-end. Verified via a
+      headless Playwright/Chromium run against `vite preview`
+      (screenshots + console capture), not just a visual eyeball check.
+
+[x] FIX 3 — Same treatment for containers, ready for when csvjson.json is
+    re-enabled (DONE)
+  [x] Build a shared texture/material cache keyed by shipping-line color
+      (module-level Map, ~15 entries total) instead of per-instance
+      useMemo, so all containers of the same line reuse one texture and
+      one material.
+      -> Implemented in src/App.jsx: getContainerVisual(color, isDark)
+         memoizes {texture, material} per color+theme in a module-level
+         Map (containerVisualCache), so all containers of the same
+         shipping line/size/theme share one canvas texture and one
+         MeshStandardMaterial instead of each container building its own.
+  [x] Strongly prefer THREE.InstancedMesh for containers (two instanced
+      meshes: 20ft and 40ft geometry), driving position/rotation/color via
+      instance matrices and an instanced color attribute, instead of 4,600+
+      individual <mesh> components.
+      -> Removed Container3D, added InstancedContainers /
+         InstancedContainerGroup. Containers are grouped by (size, color)
+         into one THREE.InstancedMesh per group (up to ~30 groups total:
+         2 sizes x ~15 colors) instead of one mesh per container.
+         Position/rotation set via per-instance matrices
+         (setMatrixAt); hover/click resolved from the raycast
+         `instanceId`, hover affordance done by brightening that
+         instance's color via `setColorAt` (no per-instance roughness
+         control, acceptable trade-off — see note below).
+  [x] Trade-off (documented in code): dropped the per-container black
+      wireframe edge outline (THREE.LineSegments isn't instanceable via
+      InstancedMesh, and re-adding one edges draw call per container
+      would defeat the fix). The texture's baked-in corrugation/ridge
+      lines still give each box visual definition; hover brightening is
+      the interaction cue instead of a material swap.
+  [x] Bug found + fixed while testing: FIX 1's fetchContainers() was only
+      wired to the 5s setInterval, never called once on mount (unlike
+      fetchSlots()), so containers would silently not appear until 5s
+      after page load. Added an immediate fetchContainers() call
+      alongside the interval, matching fetchSlots()'s mount behavior.
+  [x] Verified end-to-end by temporarily re-enabling the csvjson.json
+      fetch for testing only (then reverting it back to disabled, since
+      turning live container data on is a separate product decision):
+      app loaded "4612 Containers", boxes rendered correctly colored by
+      shipping line across the yard, hover set pointer cursor, and
+      clicking a container resolved the exact correct instance
+      (CMAU7904405, 40FT, slot S2:011:096, shipping line CMCGM) — proving
+      the instanceId -> container-data mapping is correct, not just that
+      nothing crashed. 0 console/page errors throughout.
+
+[x] FIX 4 — Reduce draw calls in static structures (DONE for the
+    highest-impact structures; see deferred item below)
+  [x] Added two shared helpers in src/App.jsx: `composeWorldMatrix(parentPos,
+      parentRotY, childPos, childScale)` computes a world matrix exactly as
+      a nested `<group position rotation><mesh position scale/></group>`
+      would, using a throwaway THREE.Object3D parent/child pair instead of
+      hand-derived rotation trig (lower risk of sign errors). `InstancedStatic`
+      is a small reusable component that takes a geometry/material/matrices
+      array and renders one THREE.InstancedMesh. Both are reused across all
+      three structures below.
+  [x] Railway (was `TrackSegment` per track segment, ~780 meshes — the
+      single worst offender, ~640 of those from poles/signals alone):
+      replaced with `Railway3D`, one component computing instance matrices
+      for the whole track and rendering 8 InstancedMesh groups total
+      (ballast, rail, wire, pole-post, pole-crossbeam, signal-box,
+      green-light, red-light).
+  [x] Parking Area (was ~572 individual meshes for spot-line stripes +
+      barriers): now 3 InstancedMesh (stripe, cross-stripe, barrier).
+  [x] Boundary Wall (was up to ~119 meshes for segments + pillars): now 5
+      InstancedMesh (foundation/skin/trim segments use a unit-length
+      geometry stretched per-instance via matrix X-scale since wall
+      segments vary in length; pillar body/cap are fixed-size and
+      instanced directly).
+  [x] Verified rigorously, not just visually:
+      - Lint: same 4 pre-existing errors as before (2 *other* pre-existing
+        lint errors — `points2D` unused, conditional `useMemo` — were
+        fixed as a side effect of this refactor).
+      - Production build succeeds, 0 console/page errors in a headless
+        Chromium run.
+      - Objective draw-call measurement (patched WebGL drawArrays/
+        drawElements/instanced variants to count real GPU draw calls for
+        one frame): original pre-fix App.jsx (`git show HEAD:src/App.jsx`,
+        built and measured standalone) = 9,052 draw calls/frame. Current
+        code (FIX 1-4 combined, containers off by default) = 282 draw
+        calls/frame — a 32x reduction.
+      - Programmatically inspected the live THREE.Scene graph (temporary
+        debug hook, removed after use): exactly 16 InstancedMesh objects
+        exist with the precise expected instance counts computed
+        independently beforehand (wall segments=23, pillars=25, parking
+        stripes=217, barriers=138, rails=88, signal boxes=256, etc. — all
+        matched exactly). Zero NaN/invalid instance matrices across all
+        16 groups. One pillar's instance position matched an
+        independently hand-computed world coordinate to 2 decimal places
+        (-235.05, 452.07), confirming the matrix math is correct, not
+        just non-crashing.
+  [x] DEFERRED ITEMS NOW COMPLETE (gate booths/barriers, crane parts,
+      RST reach stackers, warehouse/office wall decorations) — see the
+      dedicated entry below ("FIX 4 DEFERRED ITEMS COMPLETED") for what
+      changed and how it was verified.
+  [x] REGRESSION FOUND + FIXED (user-reported, post-FIX-4): user reported
+      the boundary wall disappearing entirely from certain camera angles
+      ("After this angle boundary is not Showing", screenshot showing the
+      wall missing from a low oblique view). Root cause: THREE.InstancedMesh
+      lazily auto-computes its bounding sphere on first use for frustum
+      culling, but `InstancedStatic`'s/`InstancedContainerGroup`'s instance
+      matrices were written inside `useEffect`, which runs AFTER the
+      browser paints. On the very first rendered frame every instance was
+      still sitting at the default origin position, so Three.js computed
+      and PERMANENTLY CACHED a tiny, origin-centered bounding sphere from
+      that stale state — later `setMatrixAt` calls updated the real
+      positions, but nothing ever told Three.js to recompute the cached
+      sphere. Once the camera moved such that world-origin left the view
+      frustum, the entire instancedMesh (wall, parking, railway, or
+      containers) was wrongly culled, even though individual instances
+      elsewhere were still on-screen.
+      Fix: switched both components' matrix-writing effect from
+      `useEffect` to `useLayoutEffect` (runs before paint, so the first
+      rendered frame already has correct positions) AND added an explicit
+      `mesh.computeBoundingSphere()` call after every `setMatrixAt` pass
+      (defense in depth — also correctly handles later re-renders, e.g.
+      when container group sizes change on a future live poll).
+      Verified: inspected each InstancedMesh's `boundingSphere` directly
+      after the fix — all 16 now have correctly large, non-origin-centered
+      spheres matching each structure's real extent (e.g. boundary wall
+      foundation: center [-195.9, 0.4, 72.9], radius 882.6; railway:
+      radius 3860) instead of a near-zero blob at the origin. Re-confirmed
+      draw calls are unchanged (still 282/frame) and the build/lint are
+      still clean — the fix didn't regress the FIX 4 optimization.
+  [x] SECOND REGRESSION-ADJACENT BUG FOUND + FIXED (user-reported,
+      "As i Zoom Out A White Screen comes"): this one was PRE-EXISTING
+      (present in the original code too, not introduced by FIX 1-4) but
+      only practically reachable now that the app no longer chugs/freezes
+      before you can zoom out that far. Root cause: `<Canvas camera={{
+      position: [0,400,400], fov: 45 }}>` never set an explicit `far`
+      value, so it fell back to React Three Fiber's default camera
+      `far: 1000`. But `<MapControls maxDistance={1500}>` allows zooming
+      out to 1500 units from the target — beyond the camera's own far
+      clipping plane. At max zoom-out the camera is literally farther
+      from the target than it can see, so the ground plane and every
+      structure get clipped away, leaving only the flat scene background
+      color visible (the "white screen").
+      Fix: added `far: 10000` to the Canvas camera config (src/App.jsx),
+      comfortably covering maxDistance (1500) plus the scene's real
+      extent (railway bounding sphere radius ~3860, ground plane
+      10000x10000).
+      Also found while investigating (NOT fixed, separate pre-existing
+      bug, flagged but out of scope for this perf-focused pass): the
+      `+`/`-` zoom UI buttons are silently non-functional. `CameraZoomHandler`
+      reads `controls` from `useThree()`, but `<MapControls>` only
+      registers itself into that shared state when given a `makeDefault`
+      prop, which it never gets — so `controls` is always `undefined` and
+      the buttons' effect body never runs. Mouse-wheel zoom works fine
+      (OrbitControls/MapControls handle that internally, independent of
+      the `state.controls` registration). Worth a follow-up fix
+      (`<MapControls makeDefault ...>`) if the user wants the +/- buttons
+      working — flagged here so it isn't lost.
+      Verified: reproduced the exact bug first (reverted the one-line fix,
+      confirmed a fully blank canvas at max zoom via headless Chromium +
+      programmatic camera-distance check: distance reached exactly 1500,
+      camera.far was 1000), then re-applied the fix and confirmed the
+      full yard renders correctly at the same max zoom distance (1500,
+      now well within far=10000).
+
+[x] UX CHANGE (user-requested, not a perf fix) — default starting camera
+    view. Previously the app always opened at `position: [0, 400, 400]`,
+    a fairly close 45°-ish diagonal angle showing only part of the yard.
+    User wanted the page to open already framing the whole walled yard
+    from a high overhead angle (screenshot supplied). Tuned in
+    src/App.jsx:
+      - Canvas camera position: [274, 1280, 80] (was [0, 400, 400]).
+      - <MapControls target={[-120, 0, 150]}> added (was implicit [0,0,0]).
+      - maxDistance left at 1500 (unchanged) — the new initial camera
+        distance from target is ~1341, comfortably inside it, so no other
+        constants needed to change.
+    Found via an interactive headless-Chromium tuning loop (temporary
+    debug hook exposing a `window.__setCam(px,py,pz,tx,ty,tz)` function,
+    iterated ~6 times comparing screenshots against the target image),
+    then baked into the permanent camera/MapControls config and the
+    debug hook fully removed.
+    Verified: screenshotted a true fresh page load (no interaction at
+    all) and confirmed it matches the requested framing — whole walled
+    yard visible (boundary wall, both warehouses, canteen, parking/fence
+    area, RST machines) with comfortable margins, 0 console errors.
+
+[x] THIRD BUG FOUND + FIXED (user-reported, "Extra Scroll Out When We
+    Move Too much Right or left up and down... The Main Part is
+    Invisible"): a side effect of the new further-out default camera
+    view above. Root cause: three-stdlib's OrbitControls/MapControls
+    scales pan speed by camera-to-target distance (`pan()` uses
+    `targetDistance = offset.length()`), so at the new default ~1341-unit
+    distance, a single drag moves the look-at target by hundreds of
+    units — trivially easy to pan the camera target completely off the
+    yard into empty ground, where nothing renders.
+    Fix attempts and what actually went wrong with each (kept here since
+    the failure modes are non-obvious and easy to reintroduce):
+      1. First tried clamping `controls.target`/`camera.position` inside
+         MapControls' `onChange` event handler, radius 1800. Result:
+         still blank. The radius math was wrong — at maxDistance (1500)
+         the camera's visible ground radius is only ~620 units
+         (distance * tan(fov/2)), so a target allowed to drift 1800 units
+         from yard-center could legitimately have no content in view
+         even while technically "in bounds." Also, mutating target
+         reactively inside the 'change' event fought OrbitControls'
+         internal pan damping/momentum and left the camera stuck after
+         one clamp.
+      2. Switched to a continuous per-frame clamp via `useFrame(callback,
+         1)` (priority 1) instead of the event handler, kept radius 1800
+         then tried 550. Result: TOTAL blank white screen, worse than
+         before — turned out `useFrame`'s second argument is a *render*
+         priority, and React Three Fiber stops calling its own automatic
+         `gl.render()` for the entire app the moment ANY component
+         registers a priority > 0 (confirmed in r3f source:
+         `if (!state.internal.priority && state.gl.render) ...`). This
+         silently froze the WHOLE canvas, not just panning — a easy trap
+         to fall into and worth remembering.
+      3. Final fix: same per-frame clamp, but with NO priority argument
+         (defaults to 0, which still sorts after MapControls' own
+         priority -1 update call without disabling auto-render), radius
+         tuned down to 400 (center matches the new default MapControls
+         target, [-120, 150]). Implemented as `PanBoundsClamp` in
+         src/App.jsx, fed a `controlsRef` (a plain ref passed to
+         `<MapControls ref={controlsRef}>`) rather than reading
+         `state.controls` from `useThree()`, since that's only populated
+         when `makeDefault` is set (see the FIX-4-section note about the
+         non-functional +/- zoom buttons — deliberately left unfixed,
+         out of scope here).
+    Verified: traced actual camera/target values through 8 aggressive
+    drags via headless Chromium + an exposed debug ref (confirmed the
+    clamp correctly caps distance at the configured radius, not NaN/stuck
+    due to a logic bug). Then screenshotted panning hard in all 8
+    compass directions (N/NE/E/SE/S/SW/W/NW) — yard content stays
+    visible in every direction; S/SW are the tightest (partially behind
+    the bottom-left legend panel, a separate minor UI-layering nuance,
+    not a blank-screen regression) but never fully blank. 0 console/page
+    errors throughout.
+
+[x] FOURTH BUG FOUND + FIXED (user-reported, "If i Fully Zoomed Out From
+    Top Some time Map Start Jittering"). Root cause: depth-buffer
+    precision. FIX (white-screen-on-zoom-out) added `far: 10000` to the
+    Canvas camera but left `near` at React Three Fiber's default 0.1 —
+    a near:far ratio of 100,000:1, far beyond what a standard (linear)
+    WebGL depth buffer can resolve precisely, especially at the large
+    view distances the new full-yard overhead default view (previous
+    item) sits at. This causes z-fighting: two nearly-coplanar surfaces
+    (the scene has several stacked near y=0 — ground plane y=-0.1, slots
+    y=0.01, parking ground y=0.05, wall foundations y=0.4, etc.) flicker
+    between which one wins the depth test from frame to frame.
+    Reproduced objectively before fixing: patched the canvas to capture
+    consecutive screenshots with zero user input (fully zoomed out,
+    tilted near top-down, several seconds settle time for MapControls'
+    damping), then pixel-diffed them — found 45-93 differing pixels
+    between EVERY consecutive frame pair, concentrated along the yard's
+    ground-level geometry (confirmed via a diff-highlight visualization),
+    i.e. real per-frame flicker on an otherwise-static camera.
+    Fix in src/App.jsx: `near: 1` (nothing in this scene needs to render
+    closer than ~1 unit — MapControls' minDistance is 20) cuts the ratio
+    10x, plus `gl={{ logarithmicDepthBuffer: true }}` on `<Canvas>` —
+    three.js's own recommended fix for scenes spanning this large a
+    depth range.
+    Verified: re-ran the exact same consecutive-frame diff test —
+    0 differing pixels between frames within the same ~450ms window
+    (previously 45), confirming the frame-to-frame z-fighting flicker is
+    gone. A small (~114px), constant, edge-only diff remains between
+    frames separated by several seconds — confirmed via the same
+    diff-highlight visualization to be a thin outline (antialiasing
+    signature from MapControls' damping asymptotically approaching zero
+    velocity, never reaching exact rest), not the blotchy/regional
+    pattern z-fighting produces, and it does not grow over time.
+    IMPORTANT FOLLOW-UP FINDING (not yet acted on, flagged for the user):
+    while verifying this fix, draw calls at the new default full-yard
+    overhead view measured 2,154/frame — far above the 282/frame figure
+    from FIX 4's verification. Confirmed via a controlled A/B test (same
+    build, just zoomed in close afterward) that this is NOT a regression
+    from the near/far/logarithmicDepthBuffer change itself (close zoom
+    on the same build measures 82 draw calls) — it's an direct
+    consequence of the new default camera showing the ENTIRE yard at
+    once (a separate, user-requested change, two sections up), which
+    means frustum culling can no longer discard the ~1,046 individual
+    (non-instanced) meshes that make up the structures FIX 4 explicitly
+    deferred as lower-priority: gate booths/barriers, crane parts (x6),
+    RST reach stackers (x5), and warehouse/office wall decorations —
+    confirmed via a scene-graph traversal (1046 individual Mesh objects
+    + 16 InstancedMesh = 1062 total, doubled by the shadow-map render
+    pass to ~2124, matching the measured 2154). The old close-up default
+    view mostly hid this cost via frustum culling; the new wide overhead
+    default view does not. Completing FIX 4's deferred items would fix
+    this — not done yet, pending user direction.
+
+[x] FIX 4 DEFERRED ITEMS COMPLETED (user said yes to the question above):
+    instanced the four structures FIX 4 originally deferred. All reuse
+    the same `composeWorldMatrix` + `InstancedStatic` helpers from FIX 4
+    (composeWorldMatrix extended with an optional childRot parameter,
+    needed for parts with their own local rotation like RST wheels and
+    boom arms).
+      - RST Reach Stackers (was `ReachStacker3D` x5, ~12 meshes each =
+        ~60 draws): all 5 machines are visually identical, so replaced
+        with `ReachStackerField3D` — 8 InstancedMesh covering all 5
+        machines' shared part-types (chassis, wheels, cabin, arm base,
+        boom main/tip, spreader top/latches), plus one extra invisible
+        hit-box InstancedMesh (MeshBasicMaterial visible:false) purely
+        for hover/tooltip — decoupled from the visual parts so they
+        don't need their own pointer handlers.
+      - RTG Cranes (was `Crane3D` x6, ~9-10 meshes each = ~54-60 draws):
+        replaced with `CraneField3D` — grouped by the 2 color variants
+        (yellow/orange, split 3/3) into 9 InstancedMesh total. Preserved
+        a pre-existing typo in the original code (`lngScale` computed
+        with `/ 200` instead of `/ 180`) exactly rather than "fixing" it,
+        to avoid shifting crane positions as a side effect of a perf
+        refactor. Also preserved a subtlety: the crane cab mesh has no
+        roughness/metalness props (so uses defaults) while the tower/
+        crossbeam meshes do (0.5/0.2) — same color, different materials.
+      - In-Gate / Out-Gate Plazas (was ~89 / ~40 meshes in one structure
+        each): booth sub-structures (island, pole, booth box/glass,
+        barrier, light pole, railings) repeat across each gate's lane
+        booths, so each part-type is now one InstancedMesh spanning all
+        booths in that gate (13 for InGate, 15 for OutGate) instead of
+        one mesh per part per booth. No dedicated hit-box was needed
+        here (unlike RST) — confirmed R3F bubbles pointer events from
+        any descendant, including InstancedMesh, up to the wrapping
+        `<group>`'s onPointerOver/Out, so the existing whole-gate hover
+        tooltip kept working unmodified.
+      - Warehouse shutters + Head Office bands/windows/gate (was
+        `WallDecorations`/`OfficeWallDecorations` rendered per wall
+        segment, ~10 meshes/segment for warehouses across 16 segments,
+        up to 19+ meshes/segment for the office across 24 segments):
+        instanced per-building (4 InstancedMesh per warehouse x4 = 16;
+        6 InstancedMesh for the head office). The office's wall "bands"
+        vary in length per segment, so — same trick as the FIX 4
+        boundary wall — they use a unit-length geometry stretched via
+        each instance's matrix X-scale.
+    Verified, not just visually:
+      - Lint: same 4 pre-existing errors as before, nothing new.
+      - Production build succeeds at each step; 0 console/page errors in
+        headless Chromium runs throughout.
+      - Draw calls at the default full-yard overhead view: 2,154 → 248
+        (8.7x reduction), measured the same way as the FIX 4 baseline
+        (patched WebGL draw-call entry points, one frame).
+      - Scene-graph inspection (temporary debug hook, removed after use):
+        80 InstancedMesh objects total, zero with NaN/invalid matrices,
+        zero with a 0-instance count. Spot-checked the most complex new
+        groups' instance counts against hand-computed expected values —
+        all matched exactly: RST's 9 groups (5, 20, 5, 5, 5, 5, 5, 10, 5),
+        Crane's 9 groups (12, 6, 12, 6, 3, 6, 6, 3, 3 — confirming the
+        3-yellow/3-orange split), InGate's 13 groups, OutGate's 15
+        groups, Head Office's 6 groups (72 bands = 3x24 segments; 268
+        window frames = 268 window glass; 5 gate boxes = 5 lintels = 10
+        doors).
+      - Visual: screenshotted a close-up RST machine — all parts
+        (yellow chassis, orange boom arm, black wheels, cabin) render
+        correctly assembled, not broken/missing geometry.
+      - Functional regression check: slot click-to-select still resolves
+        the correct slot (tested: clicked, info card showed "S2:9:56,
+        Path Vertices: 5") — confirms the large InGate/OutGate/Crane/RST
+        rewrite didn't disturb the MergedSlots raycast logic from FIX 2.
+
+[ ] FIX 5 — Turn off the always-on render loop
+  [ ] Set `<Canvas frameloop="demand">` and call `invalidate()` from
+      MapControls' change event and whenever isDark/selectedItem/zoomAction
+      change. With OrbitControls damping this needs an invalidate-on-change
+      listener (drei's <MapControls> supports this via the `onChange` prop
+      or `makeDefault` + drei's `useFrame` only when needed).
+
+[ ] FIX 6 — Trim shadows
+  [ ] Only the sun directionalLight should castShadow (already true) —
+      additionally stop setting castShadow/receiveShadow on small/low-value
+      meshes (parking line stripes, barrier arms, network tower bits,
+      wheel cylinders) — keep shadows only on big silhouette geometry
+      (ground, buildings, containers, walls).
+  [ ] Consider reducing shadow-mapSize to 1024 and/or constraining the
+      shadow camera frustum to the yard's bounding box (currently default
+      frustum likely far larger than needed, wasting shadow-map resolution).
+
+[ ] FIX 7 — General cleanup (lower urgency, do after FIX 2-6 land)
+  [ ] Split App.jsx into separate component files (one per structure) so
+      each optimization above can be tested/reviewed in isolation.
+  [ ] Memoize static-structure materials at module scope (like geo40ft/
+      geo20ft/edges already are) instead of recreating MeshStandardMaterial
+      objects inline in JSX on every render.
+  [ ] Verify with React/Three.js devtools + Chrome Performance panel after
+      each P0 item to confirm draw-call count and frame time actually drop
+      (target: < ~200 draw calls total, stable 60fps with MapControls
+      damping, no periodic 5s stutter).
+
+VALIDATION CHECKLIST
+---------------------
+[ ] Open browser perf overlay (r3f <Stats/> from drei or Chrome
+    Performance) before/after each change, record draw calls + FPS.
+[ ] Confirm no visible stutter at the 5s poll boundary after P0 fetch fix.
+[ ] Test on a low-end device/throttled CPU (Chrome devtools 4x-6x slowdown)
+    to simulate "any device" complaint.
+[ ] Re-enable csvjson.json container fetch only after the container
+    instancing fix (P0) lands, to avoid reintroducing the texture/material
+    duplication issue.
