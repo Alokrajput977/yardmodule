@@ -445,7 +445,7 @@ useGLTF.preload("/maple_tree.glb");
 useGLTF.preload("/tree_animate.glb");
 useGLTF.preload("/tree_gn.glb");
 useGLTF.preload("/crane.glb");
-useGLTF.preload("/indian_flag.glb");
+useGLTF.preload("/india.glb");
 useGLTF.preload("/container_loader.glb"); // Added preload for Reach Stacker
 
 const TREE_MODELS = [
@@ -623,7 +623,7 @@ const PanBoundsClamp = ({ controlsRef }) => {
 const flagPillarGeo = new THREE.CylinderGeometry(0.15, 0.2, 1.2, 12);
 
 const FlagMemorial3D = ({ center, isDark }) => {
-  const { scene } = useGLTF("/indian_flag.glb");
+  const { scene } = useGLTF("/india.glb");
   const flagScene = useMemo(() => scene.clone(), [scene]);
   const [hovered, setHovered] = useState(false);
 
@@ -639,21 +639,21 @@ const FlagMemorial3D = ({ center, isDark }) => {
       if (x < minX) minX = x; if (x > maxX) maxX = x;
       if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
     });
-
+    
     const centerX = (minX + maxX) / 2;
     const centerZ = (minZ + maxZ) / 2;
 
     const generatedPillars = [];
-    const PILLAR_SPACING = 2.0;
+    const PILLAR_SPACING = 2.0; 
 
     for (let i = 0; i < pts.length; i++) {
       const p1 = pts[i];
       const p2 = pts[(i + 1) % pts.length];
-
+      
       const dx = p2[0] - p1[0];
       const dz = p2[1] - p1[1];
       const dist = Math.hypot(dx, dz);
-
+      
       const count = Math.max(1, Math.ceil(dist / PILLAR_SPACING));
 
       for (let j = 0; j < count; j++) {
@@ -664,20 +664,20 @@ const FlagMemorial3D = ({ center, isDark }) => {
     }
 
     const curves = [];
-    const chainHeight = 1.0;
-    const droopAmount = 0.4;
+    const chainHeight = 1.0; 
+    const droopAmount = 0.4; 
 
     for (let i = 0; i < generatedPillars.length; i++) {
       const p1 = generatedPillars[i];
       const p2 = generatedPillars[(i + 1) % generatedPillars.length];
-
+      
       const midX = (p1[0] + p2[0]) / 2;
       const midZ = (p1[2] + p2[2]) / 2;
-
+      
       const v0 = new THREE.Vector3(p1[0], chainHeight, p1[2]);
       const v1 = new THREE.Vector3(midX, chainHeight - droopAmount, midZ);
       const v2 = new THREE.Vector3(p2[0], chainHeight, p2[2]);
-
+      
       curves.push(new THREE.QuadraticBezierCurve3(v0, v1, v2));
     }
 
@@ -692,7 +692,7 @@ const FlagMemorial3D = ({ center, isDark }) => {
   const chainMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: isDark ? "#374151" : "#1F2937", roughness: 0.5, metalness: 0.8 }), [isDark]);
 
   return (
-    <group
+    <group 
       onPointerOver={(e) => { e.stopPropagation(); setHovered(true); document.body.style.cursor = "pointer"; }}
       onPointerOut={(e) => { e.stopPropagation(); setHovered(false); document.body.style.cursor = "auto"; }}
     >
@@ -706,11 +706,11 @@ const FlagMemorial3D = ({ center, isDark }) => {
       ))}
 
       <group position={[cx, 0.1, cz]}>
-        <primitive
-          object={flagScene}
+        <primitive 
+          object={flagScene} 
           scale={[35, 95, 45]}
-          castShadow
-          receiveShadow
+          castShadow 
+          receiveShadow 
         />
       </group>
 
@@ -744,7 +744,7 @@ const GreeneryArea3D = ({ center, isDark }) => {
 
     const s = new THREE.Shape();
     let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-
+    
     pts.forEach(([x, z], i) => {
       if (i === 0) s.moveTo(x, z); else s.lineTo(x, z);
       if (x < minX) minX = x; if (x > maxX) maxX = x;
@@ -917,7 +917,7 @@ const ReachStackerField3D = ({ machines, center, isDark }) => {
               <Clone
                 object={scene}
                 position={[0, 1.25, 0]} // <--- ADDED THIS: Lifts the model so it sits ON the ground
-                scale={[1, 1, 1]}
+                scale={[1, 1, 1]} 
                 castShadow
                 receiveShadow
                 onPointerMove={(e) => {
@@ -933,7 +933,7 @@ const ReachStackerField3D = ({ machines, center, isDark }) => {
                   document.body.style.cursor = "auto";
                 }}
               />
-
+              
               {hoverIndex === idx && (
                 <Html position={[0, 10, 0]} center style={{ pointerEvents: "none" }}>
                   <div className={`tooltip-3d ${isDark ? "dark" : "light"}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: "bold", fontSize: "14px", background: "#EA580C", color: "#fff", border: "2px solid #fff", padding: "8px 14px", borderRadius: "6px", boxShadow: "0 6px 10px rgba(0,0,0,0.4)" }}>
@@ -1471,14 +1471,14 @@ const CraneField3D = ({ cranes, center, isDark }) => {
           const x = (crane.lng - center.lng) * LAT_TO_METERS * lngScale;
           const z = -(crane.lat - center.lat) * LAT_TO_METERS;
 
-          const rotationAngle = Math.PI / 2;
+          const rotationAngle = Math.PI / 2; 
 
           return (
             <group key={`track-crane-${idx}`} position={[x, 0, z]}>
               <Clone
                 object={scene}
                 scale={[0.002, 0.001, 0.001]}
-                rotation={[0, rotationAngle, 0]}
+                rotation={[0, rotationAngle, 0]} 
                 castShadow
                 receiveShadow
                 onClick={(e) => {
@@ -1494,7 +1494,7 @@ const CraneField3D = ({ cranes, center, isDark }) => {
                   document.body.style.cursor = "auto";
                 }}
               />
-
+              
               {activeIndex === idx && (
                 <Html position={[0, 28, 0]} center style={{ pointerEvents: "none" }}>
                   <div className={`tooltip-3d ${isDark ? "dark" : "light"}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: "bold", fontSize: "14px", background: "#1F2937", color: "#fff", border: "2px solid #fff", padding: "8px 14px", borderRadius: "6px", boxShadow: "0 6px 10px rgba(0,0,0,0.4)" }}>
