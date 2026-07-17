@@ -8,14 +8,16 @@ import "./App.css";
 const LAT_TO_METERS = 111320;
 const API_POLL_INTERVAL = 5000;
 
+
+
 // === NEW AUTOMATION GATE COORDINATES ===
 const AUTO_GATE_LANES = [
   [
     [28.508427948546363, 77.2880108044327],
-    [28.508370202450674, 77.28807048358037]
+    [28.5083636926974, 77.28807163128876]
   ],
   [
-    [28.508360774513676, 77.28807584799814],
+    [28.508367817419842, 77.2880790073632],
     [28.508293600438243, 77.28813686825025]
   ]
 ];
@@ -24,6 +26,14 @@ const AUTO_GATE_LANES = [
 const QR_SCANNER_COORDS = [
   [28.50849576249886, 77.28823060798541],
   [28.508414361828752, 77.2883066991218]
+];
+
+// === NEW BOOM BARRIER COORDINATES ===
+const BOOM_BARRIER_COORDS = [
+  { lat: 28.508367522796796, lng: 77.28795227299241, face: "right" },
+  { lat: 28.50829504550769,  lng: 77.28803072760286, face: "right" },
+  { lat: 28.508509843538203, lng: 77.28824335942097, face: "left" },
+  { lat: 28.508426170678735, lng: 77.28831644961306, face: "left" } 
 ];
 
 // === NEW FLAG AREA COORDINATES ===
@@ -36,7 +46,7 @@ const FLAG_COORDS = [
 ];
 
 const BOUNDARY_WALL_COORDS = [
-  [28.509232156091905, 77.28673914153669], [28.507338363972515, 77.28681925162508], [28.507388828969987, 77.28606886193224], [28.50887879022288, 77.2859366508579], [28.51513425216102, 77.28564939396986], [28.516105514074273, 77.28547565477994], [28.516569229877188, 77.28572424373732], [28.519108244303233, 77.28737110435144], [28.518904866086185, 77.28783919110512], [28.51575709433006, 77.2879127514761], [28.513909516566425, 77.28816611690752], [28.512519973456563, 77.288917375412553], [28.511527065899788, 77.2916025673494], [28.511463318732737, 77.29165396139055], [28.50789733914065, 77.29234998557078], [28.507746261322207, 77.29159098816812], [28.508096634293402, 77.29150477910063], [28.507860108269256, 77.2895383393366], [28.50753021124347, 77.28907320258013], [28.507735618945745, 77.2888276481522], [28.507837285240317, 77.28887014795086], [28.508468029022872, 77.28865764891665], [28.50848670230088, 77.28872612082445], [28.508866391577477, 77.28877806502395], [28.5093041736862, 77.28877806502247], [28.509233630723408, 77.28674043541311],
+  [28.509232156091905, 77.28673914153669], [28.507338363972515, 77.28681925162508], [28.507388828969987, 77.28606886193224], [28.50887879022288, 77.2859366508579], [28.51513425216102, 77.28564939396986], [28.516105514074273, 77.28547565477994], [28.516569229877188, 77.28572424373732], [28.519108244303233, 77.28737110435144], [28.518904866086185, 77.28783919110512], [28.51575709433006, 77.2879127514761], [28.513909516566425, 77.28816611690752], [28.512519973456563, 77.288917375412553], [28.511527065899788, 77.2916025673494], [28.511463318732737, 77.29165396139055], [28.50789733914065, 77.29234998557078], [28.507746261322207, 77.29159098816812], [28.508096634293402, 77.29150477910063], [28.507860108269256, 77.2889538339336], [28.50753021124347, 77.28907320258013], [28.507735618945745, 77.2888276481522], [28.507837285240317, 77.28887014795086], [28.508468029022872, 77.28865764891665], [28.50848670230088, 77.28872612082445], [28.508866391577477, 77.28877806502395], [28.5093041736862, 77.28877806502247], [28.509233630723408, 77.28674043541311],
 ];
 const INGATE_POLYGON = [[28.508862180540508, 77.2887146535867], [28.508862180540508, 77.28884621675807], [28.508489551776456, 77.28886578813892], [28.508504839136275, 77.28873313766863]];
 const OUTGATE_POLYGON = [[28.507732029353566, 77.2888193076692], [28.507533460460987, 77.28906833200674], [28.507458085232486, 77.28903697338644], [28.50768988415047, 77.28876396892754]];
@@ -58,10 +68,10 @@ const PARKING_WALL_LINES = [
   [[28.50723846, 77.28706541], [28.50722765, 77.28706588], [28.50726937, 77.28797764], [28.50725855, 77.28797811]],
   [[28.50738178, 77.28796368], [28.50738299, 77.28797492], [28.50751295, 77.28794561], [28.50751410, 77.28795686], [28.50760229, 77.28793465], [28.50760348, 77.28794589], [28.50766320, 77.28792561], [28.50766446, 77.28793684], [28.50779667, 77.28790733], [28.50779772, 77.28791859], [28.50786711, 77.28790014], [28.50786779, 77.28791144], [28.50808966, 77.28788879], [28.50809011, 77.28790010]],
   [[28.50738178, 77.28809550], [28.50738197, 77.28809804], [28.50753669, 77.28808108], [28.50753688, 77.28808362], [28.50775683, 77.28805710], [28.50775706, 77.28805964], [28.50785624, 77.28804483], [28.50785646, 77.28804737], [28.50793241, 77.28803714], [28.50793261, 77.28803968], [28.50809412, 77.28802080], [28.50809398, 77.28802337], [28.50811725, 77.28802644], [28.50811661, 77.28802889], [28.50814961, 77.28804010], [28.50814867, 77.28804243], [28.50817846, 77.28805748], [28.50817721, 77.28805963], [28.50821950, 77.28809690], [28.50821815, 77.28809897], [28.50824348, 77.28811261], [28.50824209, 77.28811465], [28.50825905, 77.28813055], [28.50825736, 77.28813224], [28.50830099, 77.28819028], [28.50829921, 77.28819185], [28.50833291, 77.28823755], [28.50833109, 77.28823906], [28.50836567, 77.28829029], [28.50836378, 77.28829169], [28.50839835, 77.28835108], [28.50839639, 77.28835234], [28.50841797, 77.28839303], [28.50841596, 77.28839419], [28.50843551, 77.28843396], [28.50843341, 77.28843490], [28.50844989, 77.28848605], [28.50844773, 77.28848677], [28.50848221, 77.28862020], [28.50847996, 77.28862056], [28.50848250, 77.28863943], [28.50848024, 77.28863938]],
-  [[28.50826223, 77.28804702], [28.50825657, 77.28805208], [28.50833384, 77.28814972], [28.50832817, 77.28815478]],
-  [[28.50829211, 77.28801925], [28.50828643, 77.28802430], [28.50836428, 77.28812315], [28.50835861, 77.28812820]],
-  [[28.50833339, 77.28798058], [28.50832774, 77.28798567], [28.50840718, 77.28808559], [28.50840153, 77.28809067]],
-  [[28.50836627, 77.28794931], [28.50836057, 77.28795432], [28.50843973, 77.28805653], [28.50843402, 77.28806154]],
+  [[28.50826223, 77.28804702], [28.50825657, 77.28805208], [28.50832817, 77.28815478]],
+  [[28.50829211, 77.28801925], [28.50828643, 77.28802430], [28.50835861, 77.28812820]],
+  [[28.50833339, 77.28798058], [28.50832774, 77.28798567], [28.50840153, 77.28809067]],
+  [[28.50836627, 77.28794931], [28.50836057, 77.28795432], [28.50843402, 77.28806154]],
   [[28.50832534, 77.28802193], [28.50831847, 77.28802856], [28.50837353, 77.28808589], [28.50836646, 77.28809225], [28.50840213, 77.28812953], [28.50839482, 77.28813550], [28.50844372, 77.28819684], [28.50843621, 77.28820249], [28.50846435, 77.28823377], [28.50845657, 77.28823896], [28.50848729, 77.28828111], [28.50847945, 77.28828617], [28.50853502, 77.28837221], [28.50852737, 77.28837763], [28.50856327, 77.28842054], [28.50855563, 77.28842598], [28.50861808, 77.28852432], [28.50861018, 77.28852927], [28.50863670, 77.28856557], [28.50862842, 77.28856966], [28.50865055, 77.28860865], [28.50864207, 77.28861214]],
   [[28.50726157, 77.28821645], [28.50725959, 77.28821854], [28.50748677, 77.28848896], [28.50748480, 77.28849106]],
   [[28.50756080, 77.28857644], [28.50755883, 77.28857855], [28.50767952, 77.28871894], [28.50767763, 77.28872114]],
@@ -176,6 +186,26 @@ function createWarningStripeTexture() {
   return texture;
 }
 
+function createRedWhiteStripeTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1024; canvas.height = 64;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#FFFFFF"; ctx.fillRect(0, 0, 1024, 64);
+  ctx.fillStyle = "#EF4444";
+  ctx.beginPath();
+  for (let i = -1024; i < 2048; i += 128) {
+    ctx.moveTo(i, 0);
+    ctx.lineTo(i + 64, 0);
+    ctx.lineTo(i + 64 + 64, 64);
+    ctx.lineTo(i + 64, 64);
+  }
+  ctx.fill();
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping; texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(1, 1);
+  return texture;
+}
+
 function isPointInPolygon(point, vs) {
   let x = point[0], z = point[1];
   let inside = false;
@@ -282,6 +312,75 @@ const PanBoundsClamp = ({ controlsRef }) => {
 };
 
 // ==========================================
+// NEW: REALISTIC BOOM BARRIER COMPONENT
+// ==========================================
+const bbCabinetGeo = new THREE.BoxGeometry(0.6, 1.1, 0.5);
+const bbPivotGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.6, 16);
+const bbArmGeo = new THREE.BoxGeometry(4.0, 0.15, 0.05); 
+const bbLedGeo = new THREE.BoxGeometry(0.2, 0.05, 0.2);
+
+const BoomBarrier3D = ({ center, isDark }) => {
+  const [hovered, setHovered] = useState(false);
+  const stripeTexture = useMemo(() => createRedWhiteStripeTexture(), []);
+
+  const { cabinetM, pivotM, armM, ledM, bounds } = useMemo(() => {
+    const lngScale = Math.cos((center.lat * Math.PI) / 180);
+    const cab = [], piv = [], arm = [], led = [];
+    let minX = Infinity, minZ = Infinity, maxX = -Infinity, maxZ = -Infinity;
+
+    BOOM_BARRIER_COORDS.forEach((coord) => {
+      const x = (coord.lng - center.lng) * LAT_TO_METERS * lngScale;
+      const z = -(coord.lat - center.lat) * LAT_TO_METERS;
+      minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+      minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
+
+      // Rotate perfectly to match the lanes. "Right" vs "Left" orientation
+      const rotY = coord.face === "right" ? -Math.PI / 4 : (-Math.PI / 4) + Math.PI;
+
+      // Position logic: The cabinet is the base
+      cab.push(composeWorldMatrix([x, 0.55, z], rotY, [0, 0, 0], [1, 1, 1]));
+      // The glowing indicator LED on top
+      led.push(composeWorldMatrix([x, 1.125, z], rotY, [0, 0, 0], [1, 1, 1]));
+      // The pivot mechanism
+      piv.push(composeWorldMatrix([x, 0.9, z + 0.3], rotY, [0, 0, 0], [1, 1, 1], [Math.PI/2, 0, 0]));
+      // The arm itself extending across the lane (horizontally closed)
+      arm.push(composeWorldMatrix([x, 0.9, z + 0.3], rotY, [2.0, 0, 0], [1, 1, 1]));
+    });
+
+    const cx = (minX + maxX) / 2 || 0;
+    const cz = (minZ + maxZ) / 2 || 0;
+
+    return { cabinetM: cab, pivotM: piv, armM: arm, ledM: led, bounds: { cx, cz } };
+  }, [center]);
+
+  const cabMat = useMemo(() => new THREE.MeshStandardMaterial({ color: "#F97316", roughness: 0.4, metalness: 0.2 }), []);
+  const pivMat = useMemo(() => new THREE.MeshStandardMaterial({ color: "#374151", roughness: 0.6, metalness: 0.8 }), []);
+  const armMat = useMemo(() => new THREE.MeshStandardMaterial({ map: stripeTexture, roughness: 0.7 }), [stripeTexture]);
+  const ledMat = useMemo(() => new THREE.MeshStandardMaterial({ color: "#EF4444", emissive: "#EF4444", emissiveIntensity: 2.0 }), []);
+
+  return (
+    <group
+      onPointerOver={(e) => { e.stopPropagation(); setHovered(true); document.body.style.cursor = "pointer"; }}
+      onPointerOut={(e) => { e.stopPropagation(); setHovered(false); document.body.style.cursor = "auto"; }}
+    >
+      <InstancedStatic geometry={bbCabinetGeo} material={cabMat} matrices={cabinetM} castShadow receiveShadow />
+      <InstancedStatic geometry={bbPivotGeo} material={pivMat} matrices={pivotM} castShadow receiveShadow />
+      <InstancedStatic geometry={bbArmGeo} material={armMat} matrices={armM} castShadow receiveShadow />
+      <InstancedStatic geometry={bbLedGeo} material={ledMat} matrices={ledM} />
+      
+      {hovered && (
+        <Html position={[bounds.cx, 4, bounds.cz]} center style={{ pointerEvents: "none", zIndex: 100 }}>
+          <div className={`tooltip-3d ${isDark ? "dark" : "light"}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: "bold", fontSize: "14px", background: "#EF4444", color: "#fff", border: "2px solid #fff", padding: "8px 14px", borderRadius: "6px", boxShadow: "0 6px 10px rgba(0,0,0,0.4)" }}>
+            <span>🚧</span> Access Control Boom Barrier
+          </div>
+        </Html>
+      )}
+    </group>
+  );
+};
+
+
+// ==========================================
 // CUSTOM AUTOMATION GATE COMPONENT
 // ==========================================
 const gantryPoleGeo = new THREE.BoxGeometry(0.15, 4.5, 0.15);
@@ -313,7 +412,7 @@ const AutomationGate3D = ({ center, isDark }) => {
       const cx = (p1.x + p2.x) / 2;
       const cz = (p1.z + p2.z) / 2;
       const angle = Math.atan2(dz, dx);
-      
+
       const parentPos = [cx, 0, cz];
       const rotY = -angle;
 
@@ -326,7 +425,7 @@ const AutomationGate3D = ({ center, isDark }) => {
 
       // 3. Orange Barrier Base Cabinets
       cabinets.push(composeWorldMatrix(parentPos, rotY, [-width / 2 - 0.4, 0.6, 0.2], [1, 1, 1]));
-      
+
       // 4. Cameras
       cameras.push(composeWorldMatrix(parentPos, rotY, [-width / 2 + 0.3, 3.5, 0.2], [1, 1, 1], [-0.5, 0.3, 0]));
       cameras.push(composeWorldMatrix(parentPos, rotY, [width / 2 - 0.3, 3.5, 0.2], [1, 1, 1], [-0.5, -0.3, 0]));
@@ -369,7 +468,6 @@ const AutomationGate3D = ({ center, isDark }) => {
 // ==========================================
 // NEW REALISTIC QR CODE SCANNER
 // ==========================================
-
 const qrBaseGeo = new THREE.CylinderGeometry(0.35, 0.45, 0.2, 32);
 const qrPoleGeo = new THREE.CylinderGeometry(0.08, 0.08, 2.0, 32);
 const qrBodyGeo = new THREE.BoxGeometry(0.7, 1.1, 0.25); // Sleek main body
@@ -392,7 +490,7 @@ const QRCodeScanner3D = ({ center, isDark }) => {
       const parentPos = [x, 0, z];
 
       // Flipped 180 degrees (+ Math.PI) to face the opposite side
-      const rotY = Math.PI / 4 + Math.PI; 
+      const rotY = Math.PI / 4 + Math.PI;
       const tiltX = -Math.PI / 12; // 15 degrees tilt for attractive ergonomics
 
       bases.push(composeWorldMatrix(parentPos, rotY, [0, 0.1, 0], [1, 1, 1]));
@@ -411,7 +509,7 @@ const QRCodeScanner3D = ({ center, isDark }) => {
       // Emissive laser line inside the scanner
       lasers.push(composeWorldMatrix(parentPos, rotY, [0, 1.7, 0.23], [1, 1, 1], [tiltX, 0, 0]));
 
-      posList.push({x, z});
+      posList.push({ x, z });
     });
     return { baseM: bases, poleM: poles, bodyM: bodies, hoodM: hoods, screenM: screens, scannerM: scanners, laserM: lasers, positions: posList };
   }, [center]);
@@ -486,7 +584,7 @@ function createIndianFlagTexture() {
   }
 
   const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace; 
+  texture.colorSpace = THREE.SRGBColorSpace;
   return texture;
 }
 
@@ -501,12 +599,12 @@ const CustomAnimatedFlag = ({ position }) => {
     const posAttr = geometry.attributes.position;
     for (let i = 0; i < posAttr.count; i++) {
       const x = initialPositions[i * 3];
-      const waveDist = x + 3; 
+      const waveDist = x + 3;
       const z = Math.sin(waveDist * 1.5 - time * 5) * (waveDist * 0.2);
       posAttr.setZ(i, z);
     }
     posAttr.needsUpdate = true;
-    geometry.computeVertexNormals(); 
+    geometry.computeVertexNormals();
   });
 
   return (
@@ -537,21 +635,21 @@ const FlagMemorial3D = ({ center, isDark }) => {
       if (x < minX) minX = x; if (x > maxX) maxX = x;
       if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
     });
-    
+
     const centerX = (minX + maxX) / 2;
     const centerZ = (minZ + maxZ) / 2;
 
     const generatedPillars = [];
-    const PILLAR_SPACING = 2.0; 
+    const PILLAR_SPACING = 2.0;
 
     for (let i = 0; i < pts.length; i++) {
       const p1 = pts[i];
       const p2 = pts[(i + 1) % pts.length];
-      
+
       const dx = p2[0] - p1[0];
       const dz = p2[1] - p1[1];
       const dist = Math.hypot(dx, dz);
-      
+
       const count = Math.max(1, Math.ceil(dist / PILLAR_SPACING));
 
       for (let j = 0; j < count; j++) {
@@ -562,20 +660,20 @@ const FlagMemorial3D = ({ center, isDark }) => {
     }
 
     const curves = [];
-    const chainHeight = 1.0; 
-    const droopAmount = 0.4; 
+    const chainHeight = 1.0;
+    const droopAmount = 0.4;
 
     for (let i = 0; i < generatedPillars.length; i++) {
       const p1 = generatedPillars[i];
       const p2 = generatedPillars[(i + 1) % generatedPillars.length];
-      
+
       const midX = (p1[0] + p2[0]) / 2;
       const midZ = (p1[2] + p2[2]) / 2;
-      
+
       const v0 = new THREE.Vector3(p1[0], chainHeight, p1[2]);
       const v1 = new THREE.Vector3(midX, chainHeight - droopAmount, midZ);
       const v2 = new THREE.Vector3(p2[0], chainHeight, p2[2]);
-      
+
       curves.push(new THREE.QuadraticBezierCurve3(v0, v1, v2));
     }
 
@@ -591,7 +689,7 @@ const FlagMemorial3D = ({ center, isDark }) => {
   const poleHeight = 15;
 
   return (
-    <group 
+    <group
       onPointerOver={(e) => { e.stopPropagation(); setHovered(true); document.body.style.cursor = "pointer"; }}
       onPointerOut={(e) => { e.stopPropagation(); setHovered(false); document.body.style.cursor = "auto"; }}
     >
@@ -605,17 +703,17 @@ const FlagMemorial3D = ({ center, isDark }) => {
       ))}
 
       <group position={[cx, 0, cz]}>
-        
+
         <mesh position={[0, 0.2, 0]} castShadow receiveShadow>
           <boxGeometry args={[4, 0.4, 4]} />
           <meshStandardMaterial color={isDark ? "#374151" : "#D1D5DB"} roughness={0.8} />
         </mesh>
-        
+
         <mesh position={[0, 0.6, 0]} castShadow receiveShadow>
           <boxGeometry args={[3, 0.4, 3]} />
           <meshStandardMaterial color={isDark ? "#4B5563" : "#E5E7EB"} roughness={0.8} />
         </mesh>
-        
+
         <mesh position={[0, 1.0, 0]} castShadow receiveShadow>
           <boxGeometry args={[2, 0.4, 2]} />
           <meshStandardMaterial color={isDark ? "#374151" : "#D1D5DB"} roughness={0.8} />
@@ -660,7 +758,7 @@ const GreeneryArea3D = ({ center, isDark }) => {
 
     const s = new THREE.Shape();
     let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-    
+
     pts.forEach(([x, z], i) => {
       if (i === 0) s.moveTo(x, z); else s.lineTo(x, z);
       if (x < minX) minX = x; if (x > maxX) maxX = x;
@@ -829,8 +927,8 @@ const ReachStackerField3D = ({ machines, center, isDark }) => {
             <group key={`rst-${idx}`} position={[x, 0, z]} rotation={[0, angle, 0]}>
               <Clone
                 object={scene}
-                position={[0, 1.25, 0]} 
-                scale={[1, 1, 1]} 
+                position={[0, 1.25, 0]}
+                scale={[1, 1, 1]}
                 castShadow
                 receiveShadow
                 onPointerMove={(e) => {
@@ -846,7 +944,7 @@ const ReachStackerField3D = ({ machines, center, isDark }) => {
                   document.body.style.cursor = "auto";
                 }}
               />
-              
+
               {hoverIndex === idx && (
                 <Html position={[0, 10, 0]} center style={{ pointerEvents: "none" }}>
                   <div className={`tooltip-3d ${isDark ? "dark" : "light"}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: "bold", fontSize: "14px", background: "#EA580C", color: "#fff", border: "2px solid #fff", padding: "8px 14px", borderRadius: "6px", boxShadow: "0 6px 10px rgba(0,0,0,0.4)" }}>
@@ -1384,14 +1482,14 @@ const CraneField3D = ({ cranes, center, isDark }) => {
           const x = (crane.lng - center.lng) * LAT_TO_METERS * lngScale;
           const z = -(crane.lat - center.lat) * LAT_TO_METERS;
 
-          const rotationAngle = Math.PI / 2; 
+          const rotationAngle = Math.PI / 2;
 
           return (
             <group key={`track-crane-${idx}`} position={[x, 0, z]}>
               <Clone
                 object={scene}
                 scale={[0.002, 0.001, 0.001]}
-                rotation={[0, rotationAngle, 0]} 
+                rotation={[0, rotationAngle, 0]}
                 castShadow
                 receiveShadow
                 onClick={(e) => {
@@ -1407,7 +1505,7 @@ const CraneField3D = ({ cranes, center, isDark }) => {
                   document.body.style.cursor = "auto";
                 }}
               />
-              
+
               {activeIndex === idx && (
                 <Html position={[0, 28, 0]} center style={{ pointerEvents: "none" }}>
                   <div className={`tooltip-3d ${isDark ? "dark" : "light"}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: "bold", fontSize: "14px", background: "#1F2937", color: "#fff", border: "2px solid #fff", padding: "8px 14px", borderRadius: "6px", boxShadow: "0 6px 10px rgba(0,0,0,0.4)" }}>
@@ -1518,7 +1616,7 @@ const Warehouse3D = ({ data, center, isDark }) => {
   const [hovered, setHovered] = useState(false);
   const { shape, wallSegments } = useMemo(() => {
     const s = new THREE.Shape();
-    const lngScale = Math.cos((center.lat * Math.PI) / 90);
+    const lngScale = Math.cos((center.lat * Math.PI) / 180);
     const points2D = [];
     data.polygon.forEach((coord, i) => {
       const [lat, lng] = coord;
@@ -2315,6 +2413,7 @@ function App() {
           <div className="legend-row" style={{ display: "flex", alignItems: "center", marginBottom: "12px", fontSize: "0.9rem", fontWeight: "600" }}><div style={{ width: "12px", height: "12px", background: "#71717A", border: "2px dashed #FACC15", marginRight: "10px", borderRadius: "2px" }}></div><span>Light Parking</span></div>
           <div className="legend-row" style={{ display: "flex", alignItems: "center", marginBottom: "12px", fontSize: "0.9rem", fontWeight: "600" }}><div style={{ width: "12px", height: "12px", background: "#EA580C", marginRight: "10px", borderRadius: "2px" }}></div><span>RST Stacker</span></div>
           <div className="legend-row" style={{ display: "flex", alignItems: "center", fontSize: "0.9rem", fontWeight: "600" }}><div style={{ width: "12px", height: "12px", background: "#FACC15", marginRight: "10px", borderRadius: "2px" }}></div><span>Crane</span></div>
+          <div className="legend-row" style={{ display: "flex", alignItems: "center", marginTop: "12px", fontSize: "0.9rem", fontWeight: "600" }}><div style={{ width: "12px", height: "12px", background: "#EF4444", marginRight: "10px", borderRadius: "2px" }}></div><span>Boom Barrier</span></div>
         </div>
       </div>
 
@@ -2340,6 +2439,9 @@ function App() {
 
         {/* === NEW REALISTIC QR CODE SCANNERS === */}
         <QRCodeScanner3D center={center} isDark={isDark} />
+
+        {/* === NEW REALISTIC BOOM BARRIERS === */}
+        <BoomBarrier3D center={center} isDark={isDark} />
 
         <Suspense fallback={null}>
           <FlagMemorial3D center={center} isDark={isDark} />
