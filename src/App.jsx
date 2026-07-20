@@ -122,6 +122,7 @@ useGLTF.preload("/oak_trees.glb")
 useGLTF.preload("/tree_gn.glb");
 useGLTF.preload("/crane.glb");
 useGLTF.preload("/container_loader.glb");
+useGLTF.preload("/train.glb");
 
 const TREE_MODELS = [
   "/acacia_tree.glb"
@@ -798,6 +799,316 @@ const GreeneryArea3D = ({ center, isDark }) => {
 
 
 // ==========================================
+// 3D ROAD FILLING THE REAL GAPS BETWEEN THE
+// PARKING WALL LINES (distance-field raster road)
+// PLUS the whole marked parking area (PARKING_COORDS),
+// so the road runs continuously from the terminal
+// gates across every lane and the parking block.
+// ==========================================
+const ROAD_GRID_STEP = 0.9;        // meters per raster cell — controls road smoothness
+const ROAD_WALL_CLEARANCE = 0.18;  // road runs almost up to the wall (wall geometry sits on top, hides the seam)
+const ROAD_MAX_REACH = 27.0;       // a wall can "claim" road up to this far away
+const ROAD_BUCKET = ROAD_MAX_REACH;
+const ROAD_HOLE_FILL_ITERATIONS = 3; // morphological closing passes — fills small stray white notches
+
+function pointSegDist(px, pz, x1, z1, x2, z2) {
+  const dx = x2 - x1, dz = z2 - z1;
+  const lenSq = dx * dx + dz * dz;
+  let t = lenSq > 1e-9 ? ((px - x1) * dx + (pz - z1) * dz) / lenSq : 0;
+  t = Math.max(0, Math.min(1, t));
+  const cx = x1 + dx * t, cz = z1 + dz * t;
+  return Math.hypot(px - cx, pz - cz);
+}
+
+function morphClose(mask, cols, rows, iterations) {
+  let cur = mask;
+  for (let pass = 0; pass < iterations; pass++) {
+    const dilated = new Uint8Array(cur.length);
+    for (let iz = 0; iz < rows; iz++) {
+      for (let ix = 0; ix < cols; ix++) {
+        let v = 0;
+        for (let dz = -1; dz <= 1 && !v; dz++) {
+          for (let dx = -1; dx <= 1 && !v; dx++) {
+            const nx = ix + dx, nz = iz + dz;
+            if (nx >= 0 && nx < cols && nz >= 0 && nz < rows && cur[nz * cols + nx]) v = 1;
+          }
+        }
+        dilated[iz * cols + ix] = v;
+      }
+    }
+    cur = dilated;
+  }
+  for (let pass = 0; pass < iterations; pass++) {
+    const eroded = new Uint8Array(cur.length);
+    for (let iz = 0; iz < rows; iz++) {
+      for (let ix = 0; ix < cols; ix++) {
+        let v = 1;
+        for (let dz = -1; dz <= 1 && v; dz++) {
+          for (let dx = -1; dx <= 1 && v; dx++) {
+            const nx = ix + dx, nz = iz + dz;
+            if (nx < 0 || nx >= cols || nz < 0 || nz >= rows || !cur[nz * cols + nx]) v = 0;
+          }
+        }
+        eroded[iz * cols + ix] = v;
+      }
+    }
+    cur = eroded;
+  }
+  return cur;
+}
+
+
+const roadDashMaterial = new THREE.MeshStandardMaterial({ color: "#F8FAFC", roughness: 0.5, emissive: "#F8FAFC", emissiveIntensity: 0.05 });
+
+// Flat directional arrow, tip pointing along local +X (rotated per-instance to match lane direction).
+const roadArrowGeo = new THREE.BufferGeometry();
+roadArrowGeo.setAttribute("position", new THREE.Float32BufferAttribute([
+  0.55, 0.0, 0.0,    0.12, 0.0, 0.28,   0.12, 0.0, -0.28,
+  0.12, 0.0, 0.12,   -0.42, 0.0, 0.12,  0.12, 0.0, -0.12,
+  -0.42, 0.0, -0.12,
+], 3));
+roadArrowGeo.setIndex([0, 1, 2, 3, 4, 5, 4, 6, 5]);
+roadArrowGeo.computeVertexNormals();
+const roadArrowMaterial = new THREE.MeshStandardMaterial({ color: "#F8FAFC", roughness: 0.5, emissive: "#F8FAFC", emissiveIntensity: 0.08, side: THREE.DoubleSide });
+
+function createAsphaltTexture(isDark) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 256; canvas.height = 256;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = isDark ? "#17171B" : "#2A2A30";
+  ctx.fillRect(0, 0, 256, 256);
+  ctx.globalAlpha = 0.35;
+  for (let i = 0; i < 900; i++) {
+    const shade = 60 + Math.random() * 40;
+    ctx.fillStyle = `rgb(${shade},${shade},${shade})`;
+    const s = Math.random() * 1.6 + 0.4;
+    ctx.fillRect(Math.random() * 256, Math.random() * 256, s, s);
+  }
+  ctx.globalAlpha = 1;
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping; texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(18, 18);
+  return texture;
+}
+
+const ParkingRoad3D = ({ center, isDark }) => {
+  const asphaltTexture = useMemo(() => createAsphaltTexture(isDark), [isDark]);
+  const asphaltMaterial = useMemo(
+    () => new THREE.MeshStandardMaterial({ map: asphaltTexture, roughness: 0.95, metalness: 0.05 }),
+    [asphaltTexture]
+  );
+
+  const { roadGeometry, dashMatrices, arrowMatrices } = useMemo(() => {
+    const lngScale = Math.cos((center.lat * Math.PI) / 180);
+
+    // 1. Flatten every wall line into segments tagged with their line index.
+    const segments = [];
+    PARKING_WALL_LINES.forEach((line, lineIdx) => {
+      const pts = line.map((c) => ({
+        x: (c[1] - center.lng) * LAT_TO_METERS * lngScale,
+        z: -(c[0] - center.lat) * LAT_TO_METERS,
+      }));
+      for (let i = 0; i < pts.length - 1; i++) {
+        const p1 = pts[i], p2 = pts[i + 1];
+        if (Math.hypot(p2.x - p1.x, p2.z - p1.z) < 0.02) continue;
+        segments.push({ x1: p1.x, z1: p1.z, x2: p2.x, z2: p2.z, lineIdx });
+      }
+    });
+    if (!segments.length) return { roadGeometry: null, dashMatrices: [], arrowMatrices: [] };
+
+    // 2. Spatial hash so distance queries don't scan every segment per cell.
+    const buckets = new Map();
+    const bucketKey = (bx, bz) => `${bx}_${bz}`;
+    segments.forEach((seg, idx) => {
+      const minX = Math.min(seg.x1, seg.x2) - ROAD_MAX_REACH;
+      const maxX = Math.max(seg.x1, seg.x2) + ROAD_MAX_REACH;
+      const minZ = Math.min(seg.z1, seg.z2) - ROAD_MAX_REACH;
+      const maxZ = Math.max(seg.z1, seg.z2) + ROAD_MAX_REACH;
+      const bx0 = Math.floor(minX / ROAD_BUCKET), bx1 = Math.floor(maxX / ROAD_BUCKET);
+      const bz0 = Math.floor(minZ / ROAD_BUCKET), bz1 = Math.floor(maxZ / ROAD_BUCKET);
+      for (let bx = bx0; bx <= bx1; bx++) {
+        for (let bz = bz0; bz <= bz1; bz++) {
+          const key = bucketKey(bx, bz);
+          if (!buckets.has(key)) buckets.set(key, []);
+          buckets.get(key).push(idx);
+        }
+      }
+    });
+
+    // 3. Parking area polygon (local coords) — cells inside this are road too,
+    //    so the whole marked parking block gets covered, not just the lane gaps.
+    const parkingPts = PARKING_COORDS.map((c) => [
+      (c[1] - center.lng) * LAT_TO_METERS * lngScale,
+      -(c[0] - center.lat) * LAT_TO_METERS,
+    ]);
+
+    // 4. Raster the bounding box (walls + parking polygon combined).
+    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+    segments.forEach((s) => {
+      minX = Math.min(minX, s.x1, s.x2); maxX = Math.max(maxX, s.x1, s.x2);
+      minZ = Math.min(minZ, s.z1, s.z2); maxZ = Math.max(maxZ, s.z1, s.z2);
+    });
+    parkingPts.forEach(([x, z]) => {
+      minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+      minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
+    });
+
+    const cols = Math.ceil((maxX - minX) / ROAD_GRID_STEP) + 1;
+    const rows = Math.ceil((maxZ - minZ) / ROAD_GRID_STEP) + 1;
+    // distGrid: distance-to-nearest-wall for cells found via the "2 distinct lines" gap test
+    // (this is the meaningful lane skeleton, used for dashes/arrows/edge trimming).
+    const distGrid = new Float32Array(cols * rows).fill(-1);
+    const laneMask = new Uint8Array(cols * rows); // gap-corridor cells only
+    const roadMask = new Uint8Array(cols * rows); // gap-corridor cells OR inside parking polygon
+
+    const nearestPerLine = new Map();
+    for (let iz = 0; iz < rows; iz++) {
+      const pz = minZ + iz * ROAD_GRID_STEP;
+      const bz = Math.floor(pz / ROAD_BUCKET);
+      for (let ix = 0; ix < cols; ix++) {
+        const px = minX + ix * ROAD_GRID_STEP;
+        const idx2d = iz * cols + ix;
+
+        if (isPointInPolygon([px, pz], parkingPts)) {
+          roadMask[idx2d] = 1;
+        }
+
+        const bx = Math.floor(px / ROAD_BUCKET);
+        const cand = buckets.get(bucketKey(bx, bz));
+        if (!cand) continue;
+
+        nearestPerLine.clear();
+        for (let k = 0; k < cand.length; k++) {
+          const seg = segments[cand[k]];
+          const d = pointSegDist(px, pz, seg.x1, seg.z1, seg.x2, seg.z2);
+          if (d > ROAD_MAX_REACH) continue;
+          const prev = nearestPerLine.get(seg.lineIdx);
+          if (prev === undefined || d < prev) nearestPerLine.set(seg.lineIdx, d);
+        }
+        if (nearestPerLine.size < 2) continue;
+
+        let d1 = Infinity, d2 = Infinity;
+        nearestPerLine.forEach((d) => {
+          if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) { d2 = d; }
+        });
+        if (d1 < ROAD_WALL_CLEARANCE) continue; // sits inside a wall's own thickness
+        if (d2 > ROAD_MAX_REACH) continue;
+
+        distGrid[idx2d] = d1;
+        laneMask[idx2d] = 1;
+        roadMask[idx2d] = 1;
+      }
+    }
+
+    // 5. Morphological closing fills stray one/two-cell holes and notches
+    //    (the little white patches inside an otherwise solid road area).
+    const closedMask = morphClose(roadMask, cols, rows, ROAD_HOLE_FILL_ITERATIONS);
+
+    // 6. Build the road surface mesh from the closed mask.
+    const positions = [];
+    const indices = [];
+    const isRoad = (ix, iz) => ix >= 0 && ix < cols && iz >= 0 && iz < rows && closedMask[iz * cols + ix] === 1;
+    const vIndex = new Int32Array(cols * rows).fill(-1);
+    let vCount = 0;
+    for (let iz = 0; iz < rows; iz++) {
+      for (let ix = 0; ix < cols; ix++) {
+        if (!isRoad(ix, iz)) continue;
+        const px = minX + ix * ROAD_GRID_STEP;
+        const pz = minZ + iz * ROAD_GRID_STEP;
+        positions.push(px, 0, pz);
+        vIndex[iz * cols + ix] = vCount++;
+      }
+    }
+    for (let iz = 0; iz < rows - 1; iz++) {
+      for (let ix = 0; ix < cols - 1; ix++) {
+        const a = vIndex[iz * cols + ix];
+        const b = vIndex[iz * cols + ix + 1];
+        const c = vIndex[(iz + 1) * cols + ix];
+        const d = vIndex[(iz + 1) * cols + ix + 1];
+        if (a >= 0 && b >= 0 && c >= 0) indices.push(a, c, b);
+        if (b >= 0 && c >= 0 && d >= 0) indices.push(b, c, d);
+      }
+    }
+
+    let roadGeo = null;
+    if (positions.length) {
+      roadGeo = new THREE.BufferGeometry();
+      roadGeo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+      const uvs = new Float32Array((positions.length / 3) * 2);
+      for (let i = 0; i < positions.length / 3; i++) {
+        uvs[i * 2] = positions[i * 3] / 2;
+        uvs[i * 2 + 1] = positions[i * 3 + 2] / 2;
+      }
+      roadGeo.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
+      roadGeo.setIndex(indices);
+      roadGeo.computeVertexNormals();
+    }
+
+    // 7. Centerline dashes + directional arrows — only along the real lane
+    //    skeleton (laneMask), where a cell is locally farthest from any wall
+    //    (the medial line of the gap), so arrows never appear in the open
+    //    parking block interior, only along the actual driving lanes.
+    const dashM = [];
+    const arrowCandidates = [];
+    const isLane = (ix, iz) => ix >= 0 && ix < cols && iz >= 0 && iz < rows && laneMask[iz * cols + ix] === 1;
+    for (let iz = 0; iz < rows; iz++) {
+      for (let ix = 0; ix < cols; ix++) {
+        if (!isLane(ix, iz)) continue;
+        const d0 = distGrid[iz * cols + ix];
+        const px = minX + ix * ROAD_GRID_STEP;
+        const pz = minZ + iz * ROAD_GRID_STEP;
+
+        const dLeft = isLane(ix - 1, iz) ? distGrid[iz * cols + ix - 1] : -1;
+        const dRight = isLane(ix + 1, iz) ? distGrid[iz * cols + ix + 1] : -1;
+        const dDown = isLane(ix, iz - 1) ? distGrid[(iz - 1) * cols + ix] : -1;
+        const dUp = isLane(ix, iz + 1) ? distGrid[(iz + 1) * cols + ix] : -1;
+
+        const isLocalMax = d0 >= dLeft && d0 >= dRight && d0 >= dDown && d0 >= dUp;
+        if (!isLocalMax) continue;
+        if ((ix + iz) % 3 === 0) {
+          dashM.push(composeWorldMatrix([px, 0.03, pz], 0, [0, 0, 0], [1, 1, 1]));
+        }
+
+        // Lane direction = perpendicular to the local distance gradient
+        // (gradient points toward the nearest wall; rotate 90° for the "along lane" direction).
+        const gx = (dRight >= 0 ? dRight : d0) - (dLeft >= 0 ? dLeft : d0);
+        const gz = (dUp >= 0 ? dUp : d0) - (dDown >= 0 ? dDown : d0);
+        const glen = Math.hypot(gx, gz);
+        if (glen < 1e-4) continue;
+        const dirX = -gz / glen, dirZ = gx / glen;
+        arrowCandidates.push({ px, pz, angle: Math.atan2(dirZ, dirX) });
+      }
+    }
+
+    // Greedy spatial thinning so arrows sit a comfortable distance apart.
+    const ARROW_SPACING = 8.5;
+    const ARROW_SPACING_SQ = ARROW_SPACING * ARROW_SPACING;
+    const placedArrows = [];
+    for (let i = 0; i < arrowCandidates.length; i++) {
+      const cand = arrowCandidates[i];
+      let tooClose = false;
+      for (let j = 0; j < placedArrows.length; j++) {
+        const dx = placedArrows[j].px - cand.px, dz = placedArrows[j].pz - cand.pz;
+        if (dx * dx + dz * dz < ARROW_SPACING_SQ) { tooClose = true; break; }
+      }
+      if (!tooClose) placedArrows.push(cand);
+    }
+    const arrowM = placedArrows.map((a) => composeWorldMatrix([a.px, 0.032, a.pz], -a.angle, [0, 0, 0], [1, 1, 1]));
+
+    return { roadGeometry: roadGeo, dashMatrices: dashM, arrowMatrices: arrowM };
+  }, [center]);
+
+  if (!roadGeometry) return null;
+
+  return (
+    <group>
+      <mesh geometry={roadGeometry} material={asphaltMaterial} receiveShadow position={[0, 0.016, 0]} />
+      <InstancedStatic geometry={roadArrowGeo} material={roadArrowMaterial} matrices={arrowMatrices} />
+    </group>
+  );
+};
+
+// ==========================================
 // SMALL PARKING WALL WITH YELLOW/BLACK STRIPES
 // ==========================================
 const smallWallSkinGeo = new THREE.BoxGeometry(1, 0.8, 0.3);
@@ -1056,6 +1367,135 @@ const wallPillarCapGeo = new THREE.CylinderGeometry(0, WALL_THICKNESS + 0.5, 0.3
 const wallTrimGeo = new THREE.BoxGeometry(1, 0.2, WALL_THICKNESS + 0.1);
 const wallSkinMaterial = new THREE.MeshStandardMaterial({ color: "#E6C280", roughness: 0.8 });
 
+// ==========================================
+// NEW: SIDE BOUNDARY GATE (replaces wall segment
+// between BOUNDARY_WALL_COORDS[1] and [2])
+// Matches the blue double swing-gate reference photo
+// ==========================================
+const NEW_GATE_P1 = BOUNDARY_WALL_COORDS[1]; // [28.507338363972515, 77.28681925162508]
+const NEW_GATE_P2 = BOUNDARY_WALL_COORDS[2]; // [28.507388828969987, 77.28606886193224]
+const SIDE_GATE_SEGMENT_INDEX = 1; // segment i=1 connects pts[1] -> pts[2]
+
+const sideGatePillarGeo = new THREE.BoxGeometry(0.42, 2.9, 0.42);
+const sideGatePillarCapGeo = new THREE.BoxGeometry(0.6, 0.18, 0.6);
+const sideGatePillarCapTopGeo = new THREE.ConeGeometry(0.42, 0.35, 4);
+const sideGatePanelGeo = new THREE.BoxGeometry(1, 1.35, 0.09);
+const sideGateBarGeo = new THREE.CylinderGeometry(0.025, 0.025, 1.15, 6);
+const sideGateTopBeamGeo = new THREE.BoxGeometry(1, 0.09, 0.09);
+const sideGateBottomBeamGeo = new THREE.BoxGeometry(1, 0.07, 0.07);
+const sideGateWheelGeo = new THREE.CylinderGeometry(0.13, 0.13, 0.1, 12);
+const sideGateHingeGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.3, 8);
+
+const sideGatePillarMaterial = new THREE.MeshStandardMaterial({ color: "#EFE7D6", roughness: 0.85, metalness: 0.05 });
+const sideGatePillarCapMaterial = new THREE.MeshStandardMaterial({ color: "#D8CDB2", roughness: 0.7 });
+const sideGatePanelMaterial = new THREE.MeshStandardMaterial({ color: "#1C7FA0", roughness: 0.5, metalness: 0.3 });
+const sideGateBarMaterial = new THREE.MeshStandardMaterial({ color: "#14607E", roughness: 0.4, metalness: 0.6 });
+const sideGateWheelMaterial = new THREE.MeshStandardMaterial({ color: "#1F2937", roughness: 0.6, metalness: 0.4 });
+
+const SideGate3D = ({ center, isDark }) => {
+  const [hovered, setHovered] = useState(false);
+
+  const { cx, cz, angle, length, leafWidth, numLeaves, dividerIndex } = useMemo(() => {
+    const lngScale = Math.cos((center.lat * Math.PI) / 180);
+    const p1 = {
+      x: (NEW_GATE_P1[1] - center.lng) * LAT_TO_METERS * lngScale,
+      z: -(NEW_GATE_P1[0] - center.lat) * LAT_TO_METERS,
+    };
+    const p2 = {
+      x: (NEW_GATE_P2[1] - center.lng) * LAT_TO_METERS * lngScale,
+      z: -(NEW_GATE_P2[0] - center.lat) * LAT_TO_METERS,
+    };
+    const dx = p2.x - p1.x, dz = p2.z - p1.z;
+    const len = Math.hypot(dx, dz);
+    const ang = Math.atan2(dz, dx);
+    const targetLeafWidth = 2.6;
+    const numL = Math.max(2, Math.round(len / targetLeafWidth));
+    const actualLeafWidth = len / numL;
+    return {
+      cx: (p1.x + p2.x) / 2,
+      cz: (p1.z + p2.z) / 2,
+      angle: ang,
+      length: len,
+      leafWidth: actualLeafWidth,
+      numLeaves: numL,
+      dividerIndex: Math.floor(numL / 2),
+    };
+  }, [center]);
+
+  const { pillarM, capM, capTopM, panelM, barM, beamM, bottomBeamM, wheelM, hingeM } = useMemo(() => {
+    const parentPos = [cx, 0, cz];
+    const rotY = -angle;
+    const pillars = [], caps = [], capTops = [], panels = [], bars = [], beams = [], bottomBeams = [], wheels = [], hinges = [];
+    const startX = -length / 2;
+
+    // End pillars + a central divider pillar (mirrors the "2 gate" look from the photo)
+    const pillarPositions = [0, dividerIndex, numLeaves];
+    pillarPositions.forEach((li) => {
+      const px = startX + li * leafWidth;
+      pillars.push(composeWorldMatrix(parentPos, rotY, [px, 1.45, 0], [1, 1, 1]));
+      caps.push(composeWorldMatrix(parentPos, rotY, [px, 2.99, 0], [1, 1, 1]));
+      capTops.push(composeWorldMatrix(parentPos, rotY, [px, 3.25, 0], [1, 1, 1]));
+      hinges.push(composeWorldMatrix(parentPos, rotY, [px + 0.22, 1.3, 0], [1, 1, 1]));
+      hinges.push(composeWorldMatrix(parentPos, rotY, [px - 0.22, 1.3, 0], [1, 1, 1]));
+    });
+
+    for (let i = 0; i < numLeaves; i++) {
+      const leafCx = startX + leafWidth * (i + 0.5);
+      // Solid lower blue panel
+      panels.push(composeWorldMatrix(parentPos, rotY, [leafCx, 0.78, 0], [leafWidth - 0.18, 1, 1]));
+      // Top + bottom beams framing the open bar section
+      beams.push(composeWorldMatrix(parentPos, rotY, [leafCx, 2.22, 0], [leafWidth - 0.18, 1, 1]));
+      bottomBeams.push(composeWorldMatrix(parentPos, rotY, [leafCx, 1.48, 0], [leafWidth - 0.18, 1, 1]));
+      // Vertical bars in the upper open section
+      const barCount = 6;
+      for (let b = 1; b < barCount; b++) {
+        const barX = startX + i * leafWidth + (leafWidth / barCount) * b;
+        bars.push(composeWorldMatrix(parentPos, rotY, [barX, 1.85, 0], [1, 1, 1]));
+      }
+      // Ground rollers under each leaf edge
+      wheels.push(composeWorldMatrix(parentPos, rotY, [leafCx - leafWidth / 2 + 0.18, 0.13, 0], [1, 1, 1]));
+      wheels.push(composeWorldMatrix(parentPos, rotY, [leafCx + leafWidth / 2 - 0.18, 0.13, 0], [1, 1, 1]));
+    }
+
+    return { pillarM: pillars, capM: caps, capTopM: capTops, panelM: panels, barM: bars, beamM: beams, bottomBeamM: bottomBeams, wheelM: wheels, hingeM: hinges };
+  }, [cx, cz, angle, length, leafWidth, numLeaves, dividerIndex]);
+
+  const leftLabelPos = [cx - Math.cos(angle) * length * 0.24, 3.6, cz - Math.sin(angle) * length * 0.24];
+  const rightLabelPos = [cx + Math.cos(angle) * length * 0.24, 3.6, cz + Math.sin(angle) * length * 0.24];
+
+  return (
+    <group
+      onPointerOver={(e) => { e.stopPropagation(); setHovered(true); document.body.style.cursor = "pointer"; }}
+      onPointerOut={(e) => { e.stopPropagation(); setHovered(false); document.body.style.cursor = "auto"; }}
+    >
+      <InstancedStatic geometry={sideGatePillarGeo} material={sideGatePillarMaterial} matrices={pillarM} castShadow receiveShadow />
+      <InstancedStatic geometry={sideGatePillarCapGeo} material={sideGatePillarCapMaterial} matrices={capM} castShadow />
+      <InstancedStatic geometry={sideGatePillarCapTopGeo} material={sideGatePillarCapMaterial} matrices={capTopM} castShadow />
+      <InstancedStatic geometry={sideGatePanelGeo} material={sideGatePanelMaterial} matrices={panelM} castShadow receiveShadow />
+      <InstancedStatic geometry={sideGateTopBeamGeo} material={sideGateBarMaterial} matrices={beamM} castShadow />
+      <InstancedStatic geometry={sideGateBottomBeamGeo} material={sideGateBarMaterial} matrices={bottomBeamM} castShadow />
+      <InstancedStatic geometry={sideGateBarGeo} material={sideGateBarMaterial} matrices={barM} castShadow />
+      <InstancedStatic geometry={sideGateWheelGeo} material={sideGateWheelMaterial} matrices={wheelM} />
+      <InstancedStatic geometry={sideGateHingeGeo} material={sideGateWheelMaterial} matrices={hingeM} />
+
+      <Html position={leftLabelPos} center style={{ pointerEvents: "none" }}>
+        <div style={{ fontWeight: "bold", fontSize: "11px", color: "#fff", background: "#1C7FA0", padding: "3px 9px", borderRadius: "3px", whiteSpace: "nowrap", border: "1px solid #fff" }}>EXIT</div>
+      </Html>
+      <Html position={rightLabelPos} center style={{ pointerEvents: "none" }}>
+        <div style={{ fontWeight: "bold", fontSize: "11px", color: "#fff", background: "#1C7FA0", padding: "3px 9px", borderRadius: "3px", whiteSpace: "nowrap", border: "1px solid #fff" }}>EXIT</div>
+      </Html>
+
+      {hovered && (
+        <Html position={[cx, 4.6, cz]} center style={{ pointerEvents: "none" }}>
+          <div className={`tooltip-3d ${isDark ? "dark" : "light"}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: "bold", fontSize: "14px", background: "#1C7FA0", color: "#fff", border: "2px solid #fff", padding: "8px 14px", borderRadius: "6px", boxShadow: "0 6px 10px rgba(0,0,0,0.4)" }}>
+            <span>🚪</span> Side Boundary Gate
+          </div>
+        </Html>
+      )}
+    </group>
+  );
+};
+
 const BoundaryWall3D = ({ center, isDark }) => {
   const segments = useMemo(() => {
     const lngScale = Math.cos((center.lat * Math.PI) / 180);
@@ -1073,7 +1513,8 @@ const BoundaryWall3D = ({ center, isDark }) => {
       const angle = Math.atan2(dz, dx);
       const isOutGateGap = i === 18;
       const isInGateGap = i === 22;
-      segs.push({ cx, cz, len, angle, p1, p2, isInGateGap, isOutGateGap, index: i });
+      const isSideGateGap = i === SIDE_GATE_SEGMENT_INDEX;
+      segs.push({ cx, cz, len, angle, p1, p2, isInGateGap, isOutGateGap, isSideGateGap, index: i });
     }
     return segs;
   }, [center]);
@@ -1081,7 +1522,7 @@ const BoundaryWall3D = ({ center, isDark }) => {
   const { foundationMatrices, skinMatrices, trimMatrices, pillarBodyMatrices, pillarCapMatrices } = useMemo(() => {
     const foundation = [], skin = [], trim = [], pillarBody = [], pillarCap = [];
     segments.forEach((seg) => {
-      if (!seg.isInGateGap && !seg.isOutGateGap) {
+      if (!seg.isInGateGap && !seg.isOutGateGap && !seg.isSideGateGap) {
         const parentPos = [seg.cx, 0, seg.cz];
         const rotY = -seg.angle;
         foundation.push(composeWorldMatrix(parentPos, rotY, [0, 0.4, 0], [seg.len, 1, 1]));
@@ -1108,6 +1549,7 @@ const BoundaryWall3D = ({ center, isDark }) => {
       <InstancedStatic geometry={wallTrimGeo} material={trimMaterial} matrices={trimMatrices} castShadow receiveShadow />
       <InstancedStatic geometry={wallPillarBodyGeo} material={pillarMaterial} matrices={pillarBodyMatrices} castShadow receiveShadow />
       <InstancedStatic geometry={wallPillarCapGeo} material={trimMaterial} matrices={pillarCapMatrices} castShadow />
+      <SideGate3D center={center} isDark={isDark} />
     </group>
   );
 };
@@ -2413,6 +2855,7 @@ function App() {
           <div className="legend-row" style={{ display: "flex", alignItems: "center", marginBottom: "12px", fontSize: "0.9rem", fontWeight: "600" }}><div style={{ width: "12px", height: "12px", background: "#FACC15", border: "2px solid #111827", marginRight: "10px", borderRadius: "2px" }}></div><span>Parking Wall</span></div>
           <div className="legend-row" style={{ display: "flex", alignItems: "center", marginBottom: "12px", fontSize: "0.9rem", fontWeight: "600" }}><div style={{ width: "12px", height: "12px", background: "#38BDF8", marginRight: "10px", borderRadius: "2px" }}></div><span>Head Office</span></div>
           <div className="legend-row" style={{ display: "flex", alignItems: "center", marginBottom: "12px", fontSize: "0.9rem", fontWeight: "600" }}><div style={{ width: "12px", height: "12px", background: "#065F46", marginRight: "10px", borderRadius: "2px" }}></div><span>Terminal Gates</span></div>
+          <div className="legend-row" style={{ display: "flex", alignItems: "center", marginBottom: "12px", fontSize: "0.9rem", fontWeight: "600" }}><div style={{ width: "12px", height: "12px", background: "#1C7FA0", marginRight: "10px", borderRadius: "2px" }}></div><span>Side Boundary Gate</span></div>
           <div className="legend-row" style={{ display: "flex", alignItems: "center", marginBottom: "12px", fontSize: "0.9rem", fontWeight: "600" }}><div style={{ width: "12px", height: "12px", background: "#E6C280", marginRight: "10px", borderRadius: "2px" }}></div><span>Boundary Wall</span></div>
           <div className="legend-row" style={{ display: "flex", alignItems: "center", marginBottom: "12px", fontSize: "0.9rem", fontWeight: "600" }}><div style={{ width: "12px", height: "12px", background: isDark ? "#94A3B8" : "#D1D5DB", border: "1px solid #94A3B8", marginRight: "10px", borderRadius: "2px" }}></div><span>Warehouse</span></div>
           <div className="legend-row" style={{ display: "flex", alignItems: "center", marginBottom: "12px", fontSize: "0.9rem", fontWeight: "600" }}><div style={{ width: "12px", height: "12px", background: "#71717A", border: "2px dashed #FACC15", marginRight: "10px", borderRadius: "2px" }}></div><span>Light Parking</span></div>
@@ -2452,6 +2895,7 @@ function App() {
           <FlagMemorial3D center={center} isDark={isDark} />
         </Suspense>
 
+        <ParkingRoad3D center={center} isDark={isDark} />
         <ParkingWall3D center={center} isDark={isDark} />
         <GreeneryArea3D center={center} isDark={isDark} />
 
