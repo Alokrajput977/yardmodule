@@ -8,8 +8,6 @@ import "./App.css";
 const LAT_TO_METERS = 111320;
 const API_POLL_INTERVAL = 5000;
 
-
-
 // === NEW AUTOMATION GATE COORDINATES ===
 const AUTO_GATE_LANES = [
   [
@@ -50,7 +48,7 @@ const BOUNDARY_WALL_COORDS = [
 ];
 const INGATE_POLYGON = [[28.508862180540508, 77.2887146535867], [28.508862180540508, 77.28884621675807], [28.508489551776456, 77.28886578813892], [28.508504839136275, 77.28873313766863]];
 const OUTGATE_POLYGON = [[28.507732029353566, 77.2888193076692], [28.507533460460987, 77.28906833200674], [28.507458085232486, 77.28903697338644], [28.50768988415047, 77.28876396892754]];
-const PARKING_COORDS = [[28.50889491841472, 77.28870920718118], [28.508913326434662, 77.28874674032724], [28.509292656765698, 77.28875681637923], [28.509269676368607, 77.28798769296093], [28.508928505264922, 77.28800848008274], [28.508698700275726, 77.28802926720272], [28.50872698399292, 77.28818751752696], [28.50880240720342, 77.28841215252098], [28.50884247576206, 77.28858984885952]];
+const PARKING_COORDS = [ [28.508913326434662, 77.28874674032724], [28.509292656765698, 77.28875681637923], [28.509269676368607, 77.28798769296093], [28.508928505264922, 77.28800848008274], [28.508698700275726, 77.28802926720272], [28.50872698399292, 77.28818751752696], [28.50880240720342, 77.28841215252098], [28.50884247576206, 77.28858984885952]];
 
 const GREENERY_COORDS = [
   [28.50845790390383, 77.28776841227777], [28.50845246317079, 77.28711093642693], [28.508468912519486, 77.28678841362725], [28.508432379293147, 77.28678573141838], [28.508873091198694, 77.28774949751877], [28.508745814583012, 77.28775620304648], [28.50868689017281, 77.28775754415094], [28.50913471486485, 77.28773474537542], [28.509178318746454, 77.28772669874877], [28.509104074288622, 77.28773340427098], [28.509257277080785, 77.28786349140184], [28.507810249414163, 77.2868081762356], [28.507707720008348, 77.28681219954821], [28.507365339995083, 77.28682358116212]
@@ -118,11 +116,13 @@ const HEAD_OFFICE_POLYGON = [
 useGLTF.preload("/acacia_tree.glb");
 useGLTF.preload("/maple_tree.glb");
 useGLTF.preload("/tree_animate.glb");
-useGLTF.preload("/oak_trees.glb")
+useGLTF.preload("/oak_trees.glb");
 useGLTF.preload("/tree_gn.glb");
 useGLTF.preload("/crane.glb");
 useGLTF.preload("/container_loader.glb");
 useGLTF.preload("/train.glb");
+// ---- NEW: preload the cell tower model ----
+useGLTF.preload("/cell_tower_skyward.glb");
 
 const TREE_MODELS = [
   "/acacia_tree.glb"
@@ -131,9 +131,6 @@ const TREE_MODELS = [
 // ==========================================
 // UTILITY FUNCTIONS & MATERIALS
 // ==========================================
-
-
-
 
 const SLINE_COLORS = {
   ONEPL: "#22C55E",
@@ -279,7 +276,6 @@ function composeWorldMatrix(parentPos, parentRotY, childPos, childScale, childRo
   return _instChild.matrixWorld.clone();
 }
 
-
 const InstancedStatic = ({ geometry, material, matrices, castShadow = false, receiveShadow = false }) => {
   const meshRef = useRef(null);
   useLayoutEffect(() => {
@@ -340,16 +336,11 @@ const BoomBarrier3D = ({ center, isDark }) => {
       minX = Math.min(minX, x); maxX = Math.max(maxX, x);
       minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
 
-      // Rotate perfectly to match the lanes. "Right" vs "Left" orientation
       const rotY = coord.face === "right" ? -Math.PI / 4 : (-Math.PI / 4) + Math.PI;
 
-      // Position logic: The cabinet is the base
       cab.push(composeWorldMatrix([x, 0.55, z], rotY, [0, 0, 0], [1, 1, 1]));
-      // The glowing indicator LED on top
       led.push(composeWorldMatrix([x, 1.125, z], rotY, [0, 0, 0], [1, 1, 1]));
-      // The pivot mechanism
       piv.push(composeWorldMatrix([x, 0.9, z + 0.3], rotY, [0, 0, 0], [1, 1, 1], [Math.PI / 2, 0, 0]));
-      // The arm itself extending across the lane (horizontally closed)
       arm.push(composeWorldMatrix([x, 0.9, z + 0.3], rotY, [2.0, 0, 0], [1, 1, 1]));
     });
 
@@ -385,12 +376,11 @@ const BoomBarrier3D = ({ center, isDark }) => {
   );
 };
 
-
 // ==========================================
 // CUSTOM AUTOMATION GATE COMPONENT
 // ==========================================
 const gantryPoleGeo = new THREE.BoxGeometry(0.15, 4.5, 0.15);
-const gantryBeamGeo = new THREE.BoxGeometry(1, 0.15, 0.15); // Scaled dynamically in matrix
+const gantryBeamGeo = new THREE.BoxGeometry(1, 0.15, 0.15);
 const orangeCabinetGeo = new THREE.BoxGeometry(0.6, 1.2, 0.6);
 const cameraBoxGeo = new THREE.BoxGeometry(0.15, 0.15, 0.3);
 const greenLightBoxGeo = new THREE.BoxGeometry(0.4, 0.4, 0.05);
@@ -422,21 +412,16 @@ const AutomationGate3D = ({ center, isDark }) => {
       const parentPos = [cx, 0, cz];
       const rotY = -angle;
 
-      // 1. Poles (Left and Right)
       poles.push(composeWorldMatrix(parentPos, rotY, [-width / 2, 2.25, 0], [1, 1, 1]));
       poles.push(composeWorldMatrix(parentPos, rotY, [width / 2, 2.25, 0], [1, 1, 1]));
 
-      // 2. Crossbeam (Top)
       beams.push(composeWorldMatrix(parentPos, rotY, [0, 4.5, 0], [width, 1, 1]));
 
-      // 3. Orange Barrier Base Cabinets
       cabinets.push(composeWorldMatrix(parentPos, rotY, [-width / 2 - 0.4, 0.6, 0.2], [1, 1, 1]));
 
-      // 4. Cameras
       cameras.push(composeWorldMatrix(parentPos, rotY, [-width / 2 + 0.3, 3.5, 0.2], [1, 1, 1], [-0.5, 0.3, 0]));
       cameras.push(composeWorldMatrix(parentPos, rotY, [width / 2 - 0.3, 3.5, 0.2], [1, 1, 1], [-0.5, -0.3, 0]));
 
-      // 5. Green Light Box
       lights.push(composeWorldMatrix(parentPos, rotY, [0, 4.5, 0.1], [1, 1, 1]));
     });
 
@@ -470,17 +455,16 @@ const AutomationGate3D = ({ center, isDark }) => {
   );
 };
 
-
 // ==========================================
 // NEW REALISTIC QR CODE SCANNER
 // ==========================================
 const qrBaseGeo = new THREE.CylinderGeometry(0.35, 0.45, 0.2, 32);
 const qrPoleGeo = new THREE.CylinderGeometry(0.08, 0.08, 2.0, 32);
-const qrBodyGeo = new THREE.BoxGeometry(0.7, 1.1, 0.25); // Sleek main body
-const qrHoodGeo = new THREE.BoxGeometry(0.75, 0.08, 0.35); // Top sun hood
-const qrScreenGeo = new THREE.PlaneGeometry(0.5, 0.5); // Large screen
-const qrScannerWindowGeo = new THREE.BoxGeometry(0.4, 0.2, 0.05); // Dark glass scanner area
-const qrLaserGeo = new THREE.BoxGeometry(0.35, 0.01, 0.06); // Red laser line
+const qrBodyGeo = new THREE.BoxGeometry(0.7, 1.1, 0.25);
+const qrHoodGeo = new THREE.BoxGeometry(0.75, 0.08, 0.35);
+const qrScreenGeo = new THREE.PlaneGeometry(0.5, 0.5);
+const qrScannerWindowGeo = new THREE.BoxGeometry(0.4, 0.2, 0.05);
+const qrLaserGeo = new THREE.BoxGeometry(0.35, 0.01, 0.06);
 
 const QRCodeScanner3D = ({ center, isDark }) => {
   const [hovered, setHovered] = useState(false);
@@ -495,24 +479,19 @@ const QRCodeScanner3D = ({ center, isDark }) => {
       const z = -(coord[0] - center.lat) * LAT_TO_METERS;
       const parentPos = [x, 0, z];
 
-      // Flipped 180 degrees (+ Math.PI) to face the opposite side
       const rotY = Math.PI / 4 + Math.PI;
-      const tiltX = -Math.PI / 12; // 15 degrees tilt for attractive ergonomics
+      const tiltX = -Math.PI / 12;
 
       bases.push(composeWorldMatrix(parentPos, rotY, [0, 0.1, 0], [1, 1, 1]));
       poles.push(composeWorldMatrix(parentPos, rotY, [0, 1.0, 0], [1, 1, 1]));
 
-      // Tilted ergonomic kiosk body
       bodies.push(composeWorldMatrix(parentPos, rotY, [0, 2.0, 0.1], [1, 1, 1], [tiltX, 0, 0]));
       hoods.push(composeWorldMatrix(parentPos, rotY, [0, 2.55, 0.12], [1, 1, 1], [tiltX, 0, 0]));
 
-      // Screen positioned on the front face of the tilted body
       screens.push(composeWorldMatrix(parentPos, rotY, [0, 2.15, 0.23], [1, 1, 1], [tiltX, 0, 0]));
 
-      // Scanner module below the screen
       scanners.push(composeWorldMatrix(parentPos, rotY, [0, 1.7, 0.22], [1, 1, 1], [tiltX, 0, 0]));
 
-      // Emissive laser line inside the scanner
       lasers.push(composeWorldMatrix(parentPos, rotY, [0, 1.7, 0.23], [1, 1, 1], [tiltX, 0, 0]));
 
       posList.push({ x, z });
@@ -520,14 +499,13 @@ const QRCodeScanner3D = ({ center, isDark }) => {
     return { baseM: bases, poleM: poles, bodyM: bodies, hoodM: hoods, screenM: screens, scannerM: scanners, laserM: lasers, positions: posList };
   }, [center]);
 
-  // Highly realistic materials based on requested theme
   const baseMat = useMemo(() => new THREE.MeshStandardMaterial({ color: isDark ? "#374151" : "#9CA3AF", roughness: 0.8, metalness: 0.2 }), [isDark]);
-  const poleMat = useMemo(() => new THREE.MeshStandardMaterial({ color: "#F97316", roughness: 0.3, metalness: 0.6 }), []); // Sleek Metallic Orange Pole
-  const bodyMat = useMemo(() => new THREE.MeshPhysicalMaterial({ color: "#10B981", roughness: 0.1, metalness: 0.2, clearcoat: 1.0, clearcoatRoughness: 0.1 }), []); // Glossy Emerald Green Body
-  const hoodMat = useMemo(() => new THREE.MeshStandardMaterial({ color: isDark ? "#111827" : "#374151", roughness: 0.5, metalness: 0.5 }), [isDark]); // Dark grey hood
-  const screenMat = useMemo(() => new THREE.MeshStandardMaterial({ color: "#38BDF8", emissive: "#0284C7", emissiveIntensity: 0.8, roughness: 0.1, metalness: 0.8 }), []); // Glowing UI Screen
-  const scannerMat = useMemo(() => new THREE.MeshStandardMaterial({ color: "#000000", roughness: 0.0, metalness: 0.9, transparent: true, opacity: 0.8 }), []); // Dark Glass
-  const laserMat = useMemo(() => new THREE.MeshStandardMaterial({ color: "#EF4444", emissive: "#EF4444", emissiveIntensity: 3.0 }), []); // Glowing Red Laser
+  const poleMat = useMemo(() => new THREE.MeshStandardMaterial({ color: "#F97316", roughness: 0.3, metalness: 0.6 }), []);
+  const bodyMat = useMemo(() => new THREE.MeshPhysicalMaterial({ color: "#10B981", roughness: 0.1, metalness: 0.2, clearcoat: 1.0, clearcoatRoughness: 0.1 }), []);
+  const hoodMat = useMemo(() => new THREE.MeshStandardMaterial({ color: isDark ? "#111827" : "#374151", roughness: 0.5, metalness: 0.5 }), [isDark]);
+  const screenMat = useMemo(() => new THREE.MeshStandardMaterial({ color: "#38BDF8", emissive: "#0284C7", emissiveIntensity: 0.8, roughness: 0.1, metalness: 0.8 }), []);
+  const scannerMat = useMemo(() => new THREE.MeshStandardMaterial({ color: "#000000", roughness: 0.0, metalness: 0.9, transparent: true, opacity: 0.8 }), []);
+  const laserMat = useMemo(() => new THREE.MeshStandardMaterial({ color: "#EF4444", emissive: "#EF4444", emissiveIntensity: 3.0 }), []);
 
   return (
     <group
@@ -553,7 +531,6 @@ const QRCodeScanner3D = ({ center, isDark }) => {
   );
 };
 
-
 // ==========================================
 // PROCEDURAL ANIMATED FLAG
 // ==========================================
@@ -563,22 +540,19 @@ function createIndianFlagTexture() {
   canvas.height = 400;
   const ctx = canvas.getContext("2d");
 
-  // Draw 3 horizontal stripes
-  ctx.fillStyle = "#FF9933"; // Saffron
+  ctx.fillStyle = "#FF9933";
   ctx.fillRect(0, 0, 600, 133.33);
-  ctx.fillStyle = "#FFFFFF"; // White
+  ctx.fillStyle = "#FFFFFF";
   ctx.fillRect(0, 133.33, 600, 133.33);
-  ctx.fillStyle = "#138808"; // Green
+  ctx.fillStyle = "#138808";
   ctx.fillRect(0, 266.66, 600, 133.33);
 
-  // Draw Navy Blue Ashoka Chakra
   ctx.strokeStyle = "#000080";
   ctx.lineWidth = 4;
   ctx.beginPath();
   ctx.arc(300, 200, 50, 0, Math.PI * 2);
   ctx.stroke();
 
-  // Draw 24 Spokes
   for (let i = 0; i < 24; i++) {
     ctx.beginPath();
     ctx.moveTo(300, 200);
@@ -619,7 +593,6 @@ const CustomAnimatedFlag = ({ position }) => {
     </mesh>
   );
 };
-
 
 // ==========================================
 // FLAG MEMORIAL
@@ -745,7 +718,6 @@ const FlagMemorial3D = ({ center, isDark }) => {
   );
 };
 
-
 // ==========================================
 // 3D TREES & GREENERY AREA
 // ==========================================
@@ -797,7 +769,6 @@ const GreeneryArea3D = ({ center, isDark }) => {
   );
 };
 
-
 // ==========================================
 // 3D ROAD FILLING THE REAL GAPS BETWEEN THE
 // PARKING WALL LINES (distance-field raster road)
@@ -805,11 +776,11 @@ const GreeneryArea3D = ({ center, isDark }) => {
 // so the road runs continuously from the terminal
 // gates across every lane and the parking block.
 // ==========================================
-const ROAD_GRID_STEP = 0.9;        // meters per raster cell — controls road smoothness
-const ROAD_WALL_CLEARANCE = 0.18;  // road runs almost up to the wall (wall geometry sits on top, hides the seam)
-const ROAD_MAX_REACH = 27.0;       // a wall can "claim" road up to this far away
+const ROAD_GRID_STEP = 0.9;
+const ROAD_WALL_CLEARANCE = 0.18;
+const ROAD_MAX_REACH = 27.0;
 const ROAD_BUCKET = ROAD_MAX_REACH;
-const ROAD_HOLE_FILL_ITERATIONS = 3; // morphological closing passes — fills small stray white notches
+const ROAD_HOLE_FILL_ITERATIONS = 3;
 
 function pointSegDist(px, pz, x1, z1, x2, z2) {
   const dx = x2 - x1, dz = z2 - z1;
@@ -857,10 +828,8 @@ function morphClose(mask, cols, rows, iterations) {
   return cur;
 }
 
-
 const roadDashMaterial = new THREE.MeshStandardMaterial({ color: "#F8FAFC", roughness: 0.5, emissive: "#F8FAFC", emissiveIntensity: 0.05 });
 
-// Flat directional arrow, tip pointing along local +X (rotated per-instance to match lane direction).
 const roadArrowGeo = new THREE.BufferGeometry();
 roadArrowGeo.setAttribute("position", new THREE.Float32BufferAttribute([
   0.55, 0.0, 0.0,    0.12, 0.0, 0.28,   0.12, 0.0, -0.28,
@@ -901,7 +870,6 @@ const ParkingRoad3D = ({ center, isDark }) => {
   const { roadGeometry, dashMatrices, arrowMatrices } = useMemo(() => {
     const lngScale = Math.cos((center.lat * Math.PI) / 180);
 
-    // 1. Flatten every wall line into segments tagged with their line index.
     const segments = [];
     PARKING_WALL_LINES.forEach((line, lineIdx) => {
       const pts = line.map((c) => ({
@@ -916,7 +884,6 @@ const ParkingRoad3D = ({ center, isDark }) => {
     });
     if (!segments.length) return { roadGeometry: null, dashMatrices: [], arrowMatrices: [] };
 
-    // 2. Spatial hash so distance queries don't scan every segment per cell.
     const buckets = new Map();
     const bucketKey = (bx, bz) => `${bx}_${bz}`;
     segments.forEach((seg, idx) => {
@@ -935,14 +902,11 @@ const ParkingRoad3D = ({ center, isDark }) => {
       }
     });
 
-    // 3. Parking area polygon (local coords) — cells inside this are road too,
-    //    so the whole marked parking block gets covered, not just the lane gaps.
     const parkingPts = PARKING_COORDS.map((c) => [
       (c[1] - center.lng) * LAT_TO_METERS * lngScale,
       -(c[0] - center.lat) * LAT_TO_METERS,
     ]);
 
-    // 4. Raster the bounding box (walls + parking polygon combined).
     let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
     segments.forEach((s) => {
       minX = Math.min(minX, s.x1, s.x2); maxX = Math.max(maxX, s.x1, s.x2);
@@ -955,11 +919,9 @@ const ParkingRoad3D = ({ center, isDark }) => {
 
     const cols = Math.ceil((maxX - minX) / ROAD_GRID_STEP) + 1;
     const rows = Math.ceil((maxZ - minZ) / ROAD_GRID_STEP) + 1;
-    // distGrid: distance-to-nearest-wall for cells found via the "2 distinct lines" gap test
-    // (this is the meaningful lane skeleton, used for dashes/arrows/edge trimming).
     const distGrid = new Float32Array(cols * rows).fill(-1);
-    const laneMask = new Uint8Array(cols * rows); // gap-corridor cells only
-    const roadMask = new Uint8Array(cols * rows); // gap-corridor cells OR inside parking polygon
+    const laneMask = new Uint8Array(cols * rows);
+    const roadMask = new Uint8Array(cols * rows);
 
     const nearestPerLine = new Map();
     for (let iz = 0; iz < rows; iz++) {
@@ -991,7 +953,7 @@ const ParkingRoad3D = ({ center, isDark }) => {
         nearestPerLine.forEach((d) => {
           if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) { d2 = d; }
         });
-        if (d1 < ROAD_WALL_CLEARANCE) continue; // sits inside a wall's own thickness
+        if (d1 < ROAD_WALL_CLEARANCE) continue;
         if (d2 > ROAD_MAX_REACH) continue;
 
         distGrid[idx2d] = d1;
@@ -1000,11 +962,8 @@ const ParkingRoad3D = ({ center, isDark }) => {
       }
     }
 
-    // 5. Morphological closing fills stray one/two-cell holes and notches
-    //    (the little white patches inside an otherwise solid road area).
     const closedMask = morphClose(roadMask, cols, rows, ROAD_HOLE_FILL_ITERATIONS);
 
-    // 6. Build the road surface mesh from the closed mask.
     const positions = [];
     const indices = [];
     const isRoad = (ix, iz) => ix >= 0 && ix < cols && iz >= 0 && iz < rows && closedMask[iz * cols + ix] === 1;
@@ -1044,10 +1003,6 @@ const ParkingRoad3D = ({ center, isDark }) => {
       roadGeo.computeVertexNormals();
     }
 
-    // 7. Centerline dashes + directional arrows — only along the real lane
-    //    skeleton (laneMask), where a cell is locally farthest from any wall
-    //    (the medial line of the gap), so arrows never appear in the open
-    //    parking block interior, only along the actual driving lanes.
     const dashM = [];
     const arrowCandidates = [];
     const isLane = (ix, iz) => ix >= 0 && ix < cols && iz >= 0 && iz < rows && laneMask[iz * cols + ix] === 1;
@@ -1069,8 +1024,6 @@ const ParkingRoad3D = ({ center, isDark }) => {
           dashM.push(composeWorldMatrix([px, 0.03, pz], 0, [0, 0, 0], [1, 1, 1]));
         }
 
-        // Lane direction = perpendicular to the local distance gradient
-        // (gradient points toward the nearest wall; rotate 90° for the "along lane" direction).
         const gx = (dRight >= 0 ? dRight : d0) - (dLeft >= 0 ? dLeft : d0);
         const gz = (dUp >= 0 ? dUp : d0) - (dDown >= 0 ? dDown : d0);
         const glen = Math.hypot(gx, gz);
@@ -1080,7 +1033,6 @@ const ParkingRoad3D = ({ center, isDark }) => {
       }
     }
 
-    // Greedy spatial thinning so arrows sit a comfortable distance apart.
     const ARROW_SPACING = 8.5;
     const ARROW_SPACING_SQ = ARROW_SPACING * ARROW_SPACING;
     const placedArrows = [];
@@ -1276,7 +1228,6 @@ const ReachStackerField3D = ({ machines, center, isDark }) => {
   );
 };
 
-
 const ParkingArea3D = ({ center, isDark }) => {
   const [hovered, setHovered] = useState(false);
   const stripeTexture = useMemo(() => createWarningStripeTexture(), []);
@@ -1372,9 +1323,9 @@ const wallSkinMaterial = new THREE.MeshStandardMaterial({ color: "#E6C280", roug
 // between BOUNDARY_WALL_COORDS[1] and [2])
 // Matches the blue double swing-gate reference photo
 // ==========================================
-const NEW_GATE_P1 = BOUNDARY_WALL_COORDS[1]; // [28.507338363972515, 77.28681925162508]
-const NEW_GATE_P2 = BOUNDARY_WALL_COORDS[2]; // [28.507388828969987, 77.28606886193224]
-const SIDE_GATE_SEGMENT_INDEX = 1; // segment i=1 connects pts[1] -> pts[2]
+const NEW_GATE_P1 = BOUNDARY_WALL_COORDS[1];
+const NEW_GATE_P2 = BOUNDARY_WALL_COORDS[2];
+const SIDE_GATE_SEGMENT_INDEX = 1;
 
 const sideGatePillarGeo = new THREE.BoxGeometry(0.42, 2.9, 0.42);
 const sideGatePillarCapGeo = new THREE.BoxGeometry(0.6, 0.18, 0.6);
@@ -1428,7 +1379,6 @@ const SideGate3D = ({ center, isDark }) => {
     const pillars = [], caps = [], capTops = [], panels = [], bars = [], beams = [], bottomBeams = [], wheels = [], hinges = [];
     const startX = -length / 2;
 
-    // End pillars + a central divider pillar (mirrors the "2 gate" look from the photo)
     const pillarPositions = [0, dividerIndex, numLeaves];
     pillarPositions.forEach((li) => {
       const px = startX + li * leafWidth;
@@ -1441,18 +1391,14 @@ const SideGate3D = ({ center, isDark }) => {
 
     for (let i = 0; i < numLeaves; i++) {
       const leafCx = startX + leafWidth * (i + 0.5);
-      // Solid lower blue panel
       panels.push(composeWorldMatrix(parentPos, rotY, [leafCx, 0.78, 0], [leafWidth - 0.18, 1, 1]));
-      // Top + bottom beams framing the open bar section
       beams.push(composeWorldMatrix(parentPos, rotY, [leafCx, 2.22, 0], [leafWidth - 0.18, 1, 1]));
       bottomBeams.push(composeWorldMatrix(parentPos, rotY, [leafCx, 1.48, 0], [leafWidth - 0.18, 1, 1]));
-      // Vertical bars in the upper open section
       const barCount = 6;
       for (let b = 1; b < barCount; b++) {
         const barX = startX + i * leafWidth + (leafWidth / barCount) * b;
         bars.push(composeWorldMatrix(parentPos, rotY, [barX, 1.85, 0], [1, 1, 1]));
       }
-      // Ground rollers under each leaf edge
       wheels.push(composeWorldMatrix(parentPos, rotY, [leafCx - leafWidth / 2 + 0.18, 0.13, 0], [1, 1, 1]));
       wheels.push(composeWorldMatrix(parentPos, rotY, [leafCx + leafWidth / 2 - 0.18, 0.13, 0], [1, 1, 1]));
     }
@@ -2639,6 +2585,21 @@ const MergedSlots = ({ slots, center, isDark, onClick }) => {
   );
 };
 
+// ---- NEW: Cell Tower component using the GLTF model ----
+const CellTower3D = ({ center }) => {
+  const { scene } = useGLTF("/cell_tower_skyward.glb");
+  const lngScale = Math.cos((center.lat * Math.PI) / 180);
+  const lat = 28.509276057250666;
+  const lng = 77.28849757459123;
+  const x = (lng - center.lng) * LAT_TO_METERS * lngScale;
+  const z = -(lat - center.lat) * LAT_TO_METERS;
+  return (
+    <group position={[x, 0, z]}>
+      <Clone object={scene} scale={[19, 30, 20]} castShadow receiveShadow />
+    </group>
+  );
+};
+
 function App() {
   const [slots, setSlots] = useState([]);
   const [containers, setContainers] = useState([]);
@@ -2921,6 +2882,11 @@ function App() {
         <CraneField3D cranes={cranes} center={center} isDark={isDark} />
         <ReachStackerField3D machines={equipment} center={center} isDark={isDark} />
         <Railway3D center={center} isDark={isDark} />
+
+        {/* ---- NEW: Cell Tower placed at the given coordinates ---- */}
+        <Suspense fallback={null}>
+          <CellTower3D center={center} />
+        </Suspense>
       </Canvas>
     </div>
   );
