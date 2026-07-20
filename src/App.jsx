@@ -31,9 +31,9 @@ const QR_SCANNER_COORDS = [
 // === NEW BOOM BARRIER COORDINATES ===
 const BOOM_BARRIER_COORDS = [
   { lat: 28.508367522796796, lng: 77.28795227299241, face: "right" },
-  { lat: 28.50829504550769,  lng: 77.28803072760286, face: "right" },
+  { lat: 28.50829504550769, lng: 77.28803072760286, face: "right" },
   { lat: 28.508509843538203, lng: 77.28824335942097, face: "left" },
-  { lat: 28.508426170678735, lng: 77.28831644961306, face: "left" } 
+  { lat: 28.508426170678735, lng: 77.28831644961306, face: "left" }
 ];
 
 // === NEW FLAG AREA COORDINATES ===
@@ -46,7 +46,7 @@ const FLAG_COORDS = [
 ];
 
 const BOUNDARY_WALL_COORDS = [
-  [28.509232156091905, 77.28673914153669], [28.507338363972515, 77.28681925162508], [28.507388828969987, 77.28606886193224], [28.50887879022288, 77.2859366508579], [28.51513425216102, 77.28564939396986], [28.516105514074273, 77.28547565477994], [28.516569229877188, 77.28572424373732], [28.519108244303233, 77.28737110435144], [28.518904866086185, 77.28783919110512], [28.51575709433006, 77.2879127514761], [28.513909516566425, 77.28816611690752], [28.512519973456563, 77.288917375412553], [28.511527065899788, 77.2916025673494], [28.511463318732737, 77.29165396139055], [28.50789733914065, 77.29234998557078], [28.507746261322207, 77.29159098816812], [28.508096634293402, 77.29150477910063], [28.507860108269256, 77.2889538339336], [28.50753021124347, 77.28907320258013], [28.507735618945745, 77.2888276481522], [28.507837285240317, 77.28887014795086], [28.508468029022872, 77.28865764891665], [28.50848670230088, 77.28872612082445], [28.508866391577477, 77.28877806502395], [28.5093041736862, 77.28877806502247], [28.509233630723408, 77.28674043541311],
+  [28.509232156091905, 77.28673914153669], [28.507338363972515, 77.28681925162508], [28.507388828969987, 77.28606886193224], [28.50887879022288, 77.2859366508579], [28.51513425216102, 77.28564939396986], [28.516105514074273, 77.28547565477994], [28.516569229877188, 77.28572424373732], [28.519108244303233, 77.28737110435144], [28.518904866086185, 77.28783919110512], [28.51575709433006, 77.2879127514761], [28.513909516566425, 77.28816611690752], [28.512519973456563, 77.288917375412553], [28.511527065899788, 77.2916025673494], [28.511463318732737, 77.29165396139055], [28.50789733914065, 77.29234998557078], [28.507746261322207, 77.29159098816812], [28.508096634293402, 77.29150477910063], [28.507860108269256, 77.2895383393366], [28.50753021124347, 77.28907320258013], [28.507735618945745, 77.2888276481522], [28.507837285240317, 77.28887014795086], [28.508468029022872, 77.28865764891665], [28.50848670230088, 77.28872612082445], [28.508866391577477, 77.28877806502395], [28.5093041736862, 77.28877806502247], [28.509233630723408, 77.28674043541311],
 ];
 const INGATE_POLYGON = [[28.508862180540508, 77.2887146535867], [28.508862180540508, 77.28884621675807], [28.508489551776456, 77.28886578813892], [28.508504839136275, 77.28873313766863]];
 const OUTGATE_POLYGON = [[28.507732029353566, 77.2888193076692], [28.507533460460987, 77.28906833200674], [28.507458085232486, 77.28903697338644], [28.50768988415047, 77.28876396892754]];
@@ -118,6 +118,7 @@ const HEAD_OFFICE_POLYGON = [
 useGLTF.preload("/acacia_tree.glb");
 useGLTF.preload("/maple_tree.glb");
 useGLTF.preload("/tree_animate.glb");
+useGLTF.preload("/oak_trees.glb")
 useGLTF.preload("/tree_gn.glb");
 useGLTF.preload("/crane.glb");
 useGLTF.preload("/container_loader.glb");
@@ -129,6 +130,9 @@ const TREE_MODELS = [
 // ==========================================
 // UTILITY FUNCTIONS & MATERIALS
 // ==========================================
+
+
+
 
 const SLINE_COLORS = {
   ONEPL: "#22C55E",
@@ -274,6 +278,7 @@ function composeWorldMatrix(parentPos, parentRotY, childPos, childScale, childRo
   return _instChild.matrixWorld.clone();
 }
 
+
 const InstancedStatic = ({ geometry, material, matrices, castShadow = false, receiveShadow = false }) => {
   const meshRef = useRef(null);
   useLayoutEffect(() => {
@@ -316,7 +321,7 @@ const PanBoundsClamp = ({ controlsRef }) => {
 // ==========================================
 const bbCabinetGeo = new THREE.BoxGeometry(0.6, 1.1, 0.5);
 const bbPivotGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.6, 16);
-const bbArmGeo = new THREE.BoxGeometry(4.0, 0.15, 0.05); 
+const bbArmGeo = new THREE.BoxGeometry(4.0, 0.15, 0.05);
 const bbLedGeo = new THREE.BoxGeometry(0.2, 0.05, 0.2);
 
 const BoomBarrier3D = ({ center, isDark }) => {
@@ -342,7 +347,7 @@ const BoomBarrier3D = ({ center, isDark }) => {
       // The glowing indicator LED on top
       led.push(composeWorldMatrix([x, 1.125, z], rotY, [0, 0, 0], [1, 1, 1]));
       // The pivot mechanism
-      piv.push(composeWorldMatrix([x, 0.9, z + 0.3], rotY, [0, 0, 0], [1, 1, 1], [Math.PI/2, 0, 0]));
+      piv.push(composeWorldMatrix([x, 0.9, z + 0.3], rotY, [0, 0, 0], [1, 1, 1], [Math.PI / 2, 0, 0]));
       // The arm itself extending across the lane (horizontally closed)
       arm.push(composeWorldMatrix([x, 0.9, z + 0.3], rotY, [2.0, 0, 0], [1, 1, 1]));
     });
@@ -367,7 +372,7 @@ const BoomBarrier3D = ({ center, isDark }) => {
       <InstancedStatic geometry={bbPivotGeo} material={pivMat} matrices={pivotM} castShadow receiveShadow />
       <InstancedStatic geometry={bbArmGeo} material={armMat} matrices={armM} castShadow receiveShadow />
       <InstancedStatic geometry={bbLedGeo} material={ledMat} matrices={ledM} />
-      
+
       {hovered && (
         <Html position={[bounds.cx, 4, bounds.cz]} center style={{ pointerEvents: "none", zIndex: 100 }}>
           <div className={`tooltip-3d ${isDark ? "dark" : "light"}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: "bold", fontSize: "14px", background: "#EF4444", color: "#fff", border: "2px solid #fff", padding: "8px 14px", borderRadius: "6px", boxShadow: "0 6px 10px rgba(0,0,0,0.4)" }}>
