@@ -45,7 +45,7 @@ const OUTGATE_POLYGON = [[28.507732029353566, 77.2888193076692], [28.50753346046
 const PARKING_COORDS = [[28.508913326434662, 77.28874674032724], [28.509292656765698, 77.28875681637923], [28.509269676368607, 77.28798769296093], [28.508928505264922, 77.28800848008274], [28.508698700275726, 77.28802926720272], [28.50872698399292, 77.28818751752696], [28.50880240720342, 77.28841215252098], [28.50884247576206, 77.28858984885952]];
 
 const GREENERY_COORDS = [
-  [28.50845790390383, 77.28776841227777], [28.50845246317079, 77.28711093642693], [28.508468912519486, 77.28678841362725], [28.508432379293147, 77.28678573141838], [28.508873091198694, 77.28774949751877], [28.508745814583012, 77.28775620304648], [28.50868689017281, 77.28775754415094], [28.50913471486485, 77.28773474537542], [28.509178318746454, 77.28772669874877], [28.509104074288622, 77.28773340427098], [28.509257277080785, 77.28786349140184], [28.507810249414163, 77.2868081762356], [28.507707720008348, 77.28681219954821], [28.507365339995083, 77.28682358116212]
+  [28.50845790390383, 77.28776841227777], [28.50845246317079, 77.28711093642693], [28.508468912519486, 77.28678841362725], [28.508432379293147, 77.28678573141838], [28.508873091198694, 77.28774949751877], [28.508745814583012, 77.28775620304648], [28.50868689017281, 77.28775754415094], [28.50913471486485, 77.28773474537542], [28.509178318746454, 77.28772669874877], [28.509104074288622, 77.28773340427098], [28.509257277080785, 77.28786349140184], [28.507810249414163, 77.2868081762356], [28.507707720008348, 77.28681219954821], [28.507365339995083, 77.28682358116212],[28.507355987855256, 77.28682022830765],[28.50896276885772, 77.28954984856144],[28.509007590876884, 77.28953760687853],[28.50914743545424, 77.28953046589682],[28.509148331893247, 77.28944579425661],[28.50904882711768, 77.28945293523832],[28.508963665298303, 77.28946823734196]
 ];
 
 const PARKING_WALL_LINES = [
@@ -2140,7 +2140,6 @@ const HeadOffice3D = ({ center, isDark }) => {
       <InstancedStatic geometry={officeGateBoxGeo} material={gateFrameMaterial} matrices={gateBoxM} castShadow />
       <InstancedStatic geometry={officeGateDoorGeo} material={officeGateDoorMaterial} matrices={gateDoorM} />
       <InstancedStatic geometry={officeGateLintelGeo} material={gateFrameMaterial} matrices={gateLintelM} castShadow />
-      <NetworkTower cx={cx} cz={cz} />
       {hovered && (
         <Html position={[cx, BUILDING_HEIGHT + 10, cz]} center style={{ pointerEvents: "none" }}>
           <div className={`tooltip-3d ${isDark ? "dark" : "light"}`} style={{ fontWeight: "bold", fontSize: "14px", background: "#38BDF8", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "4px" }}>
@@ -2532,14 +2531,27 @@ const MergedSlots = ({ slots, center, isDark, onClick }) => {
 const CellTower3D = ({ center }) => {
   const { scene } = useGLTF("/cell_tower_skyward.glb");
   const lngScale = Math.cos((center.lat * Math.PI) / 180);
-  const lat = 28.509276057250666;
-  const lng = 77.28849757459123;
-  const x = (lng - center.lng) * LAT_TO_METERS * lngScale;
-  const z = -(lat - center.lat) * LAT_TO_METERS;
+  
+  // Array containing both tower coordinates
+  const towers = [
+    { lat: 28.509276057250666, lng: 77.28849757459123 }, // Original tower
+    { lat: 28.509261536402185, lng: 77.28819871749869 }  // New tower
+  ];
+
   return (
-    <group position={[x, 0, z]}>
-      <Clone object={scene} scale={[19, 30, 20]} castShadow receiveShadow />
-    </group>
+    <>
+      {towers.map((tower, index) => {
+        // Calculate X and Z positions for each tower independently
+        const x = (tower.lng - center.lng) * LAT_TO_METERS * lngScale;
+        const z = -(tower.lat - center.lat) * LAT_TO_METERS;
+
+        return (
+          <group key={index} position={[x, 0, z]}>
+            <Clone object={scene} scale={[19, 30, 20]} castShadow receiveShadow />
+          </group>
+        );
+      })}
+    </>
   );
 };
 
