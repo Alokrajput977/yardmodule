@@ -48,7 +48,7 @@ const BOUNDARY_WALL_COORDS = [
 ];
 const INGATE_POLYGON = [[28.508862180540508, 77.2887146535867], [28.508862180540508, 77.28884621675807], [28.508489551776456, 77.28886578813892], [28.508504839136275, 77.28873313766863]];
 const OUTGATE_POLYGON = [[28.507732029353566, 77.2888193076692], [28.507533460460987, 77.28906833200674], [28.507458085232486, 77.28903697338644], [28.50768988415047, 77.28876396892754]];
-const PARKING_COORDS = [ [28.508913326434662, 77.28874674032724], [28.509292656765698, 77.28875681637923], [28.509269676368607, 77.28798769296093], [28.508928505264922, 77.28800848008274], [28.508698700275726, 77.28802926720272], [28.50872698399292, 77.28818751752696], [28.50880240720342, 77.28841215252098], [28.50884247576206, 77.28858984885952]];
+const PARKING_COORDS = [[28.508913326434662, 77.28874674032724], [28.509292656765698, 77.28875681637923], [28.509269676368607, 77.28798769296093], [28.508928505264922, 77.28800848008274], [28.508698700275726, 77.28802926720272], [28.50872698399292, 77.28818751752696], [28.50880240720342, 77.28841215252098], [28.50884247576206, 77.28858984885952]];
 
 const GREENERY_COORDS = [
   [28.50845790390383, 77.28776841227777], [28.50845246317079, 77.28711093642693], [28.508468912519486, 77.28678841362725], [28.508432379293147, 77.28678573141838], [28.508873091198694, 77.28774949751877], [28.508745814583012, 77.28775620304648], [28.50868689017281, 77.28775754415094], [28.50913471486485, 77.28773474537542], [28.509178318746454, 77.28772669874877], [28.509104074288622, 77.28773340427098], [28.509257277080785, 77.28786349140184], [28.507810249414163, 77.2868081762356], [28.507707720008348, 77.28681219954821], [28.507365339995083, 77.28682358116212]
@@ -121,7 +121,7 @@ useGLTF.preload("/tree_gn.glb");
 useGLTF.preload("/crane.glb");
 useGLTF.preload("/container_loader.glb");
 useGLTF.preload("/train.glb");
-// ---- NEW: preload the cell tower model ----
+useGLTF.preload("/wagon.glb");              // <-- added wagon preload
 useGLTF.preload("/cell_tower_skyward.glb");
 
 const TREE_MODELS = [
@@ -832,8 +832,8 @@ const roadDashMaterial = new THREE.MeshStandardMaterial({ color: "#F8FAFC", roug
 
 const roadArrowGeo = new THREE.BufferGeometry();
 roadArrowGeo.setAttribute("position", new THREE.Float32BufferAttribute([
-  0.55, 0.0, 0.0,    0.12, 0.0, 0.28,   0.12, 0.0, -0.28,
-  0.12, 0.0, 0.12,   -0.42, 0.0, 0.12,  0.12, 0.0, -0.12,
+  0.55, 0.0, 0.0, 0.12, 0.0, 0.28, 0.12, 0.0, -0.28,
+  0.12, 0.0, 0.12, -0.42, 0.0, 0.12, 0.12, 0.0, -0.12,
   -0.42, 0.0, -0.12,
 ], 3));
 roadArrowGeo.setIndex([0, 1, 2, 3, 4, 5, 4, 6, 5]);
@@ -2585,7 +2585,9 @@ const MergedSlots = ({ slots, center, isDark, onClick }) => {
   );
 };
 
-// ---- NEW: Cell Tower component using the GLTF model ----
+// ==========================================
+// NEW: Cell Tower component using the GLTF model
+// ==========================================
 const CellTower3D = ({ center }) => {
   const { scene } = useGLTF("/cell_tower_skyward.glb");
   const lngScale = Math.cos((center.lat * Math.PI) / 180);
@@ -2596,6 +2598,123 @@ const CellTower3D = ({ center }) => {
   return (
     <group position={[x, 0, z]}>
       <Clone object={scene} scale={[19, 30, 20]} castShadow receiveShadow />
+    </group>
+  );
+};
+
+// ==========================================
+// NEW: Train Engine and Wagons on track
+// ==========================================
+
+// Helper: 100% Aapka original code. Ise bilkul touch nahi kiya gaya hai.
+function getTrackPositionAndAngle(center, targetLat, targetLng, trackOffset) {
+  const lngScale = Math.cos((center.lat * Math.PI) / 200);
+  const x = (targetLng - center.lng) * LAT_TO_METERS * lngScale;
+  const z = -(targetLat - center.lat) * LAT_TO_METERS;
+
+  // Compute track direction using TRACK_COORDS
+  const trackPoints = TRACK_COORDS.map(c => ({
+    lat: c[0],
+    lng: c[1],
+    x: (c[2] - center.lng) * LAT_TO_METERS * lngScale, // Aapka original c[2] wapas laga diya hai
+    z: -(c[0] - center.lat) * LAT_TO_METERS,
+  }));
+
+  let idx = -1;
+  let minDist = Infinity;
+  trackPoints.forEach((p, i) => {
+    const d = Math.hypot(p.x - x, p.z - z);
+    if (d < minDist) { minDist = d; idx = i; }
+  });
+
+  let angle = 0;
+  if (idx >= 0 && idx < trackPoints.length) {
+    const pPrev = trackPoints[Math.max(0, idx - 1)];
+    const pNext = trackPoints[Math.min(trackPoints.length - 1, idx + 1)];
+    const dx = pNext.x - pPrev.x;
+    const dz = pNext.z - pPrev.z;
+    angle = Math.atan2(dz, dx);
+  }
+
+  // Lateral offset perpendicular to track
+  const perpX = -Math.sin(angle);
+  const perpZ = Math.cos(angle);
+  const finalX = x + perpX * trackOffset;
+  const finalZ = z + perpZ * trackOffset;
+  return { x: finalX, z: finalZ, angle };
+}
+
+// Wagon Rake component
+const WagonRake3D = ({ 
+  center, 
+  targetLat, 
+  targetLng, 
+  trackOffset, 
+  count, 
+  withEngine = false, 
+  wagonScale = 1.5, 
+  spacing = 4.5,
+  
+  // NAYE PROPS: Sirf Engine ke liye
+  engineScale = 2.0,
+  engineRotYOffset = 0,       // Engine ko gol ghumane ke liye (e.g. Math.PI/2)
+  engineLateralOffset = 0,    // Engine ko left/right khiskane ke liye
+  engineForwardOffset = 0     // Engine ko aage/peeche khiskane ke liye
+}) => {
+  const { scene: engineScene } = useGLTF("/train.glb");
+  const { scene: wagonScene } = useGLTF("/wagon.glb");
+
+  const { x, z, angle } = getTrackPositionAndAngle(center, targetLat, targetLng, trackOffset);
+
+  // Direction vector along the track
+  const dirX = -Math.sin(angle);
+  const dirZ = -Math.cos(angle);
+  
+  // Perpendicular vector for lateral (left/right) shifting
+  const perpX = -Math.sin(angle);
+  const perpZ = Math.cos(angle);
+
+  // Aapka original loop logic
+  const items = [];
+  if (withEngine) {
+    items.push({ type: 'engine', offset: 0, scale: engineScale });
+  }
+  for (let i = 1; i <= count; i++) {
+    const offset = -i * spacing;
+    items.push({ type: 'wagon', offset, scale: wagonScale });
+  }
+
+  return (
+    <group>
+      {items.map((item, index) => {
+        // Aapki original calculation (Wagons bilkul is par render honge)
+        let posX = x + dirX * item.offset;
+        let posZ = z + dirZ * item.offset;
+        let rotY = -angle + Math.PI / 2;
+        let scaleVal = item.scale;
+
+        // NEW LOGIC: Agar yeh item "engine" hai, tabhi position/rotation change karo
+        if (item.type === 'engine') {
+          rotY += engineRotYOffset; 
+          // Engine ko uske naye offsets ke hisaab se track par adjust karo
+          posX += (perpX * engineLateralOffset) + (dirX * engineForwardOffset);
+          posZ += (perpZ * engineLateralOffset) + (dirZ * engineForwardOffset);
+        }
+
+        const model = item.type === 'engine' ? engineScene : wagonScene;
+        
+        return (
+          <Clone
+            key={index}
+            object={model}
+            position={[posX, 0.3, posZ]}
+            rotation={[0, rotY, 0]}
+            scale={[scaleVal, scaleVal, scaleVal]}
+            castShadow
+            receiveShadow
+          />
+        );
+      })}
     </group>
   );
 };
@@ -2750,6 +2869,10 @@ function App() {
     return <div className={`screen-message ${isDark ? "dark" : "light"}`}>Loading Live 3D Engine…</div>;
   }
 
+  // Define target location for all rakes
+  const targetLat = 28.51402777568197; // from your code
+  const targetLng = 77.286057243871;
+
   return (
     <div className={`app-container ${isDark ? "theme-dark" : "theme-light"}`}>
       <div className="ui-overlay">
@@ -2883,10 +3006,32 @@ function App() {
         <ReachStackerField3D machines={equipment} center={center} isDark={isDark} />
         <Railway3D center={center} isDark={isDark} />
 
-        {/* ---- NEW: Cell Tower placed at the given coordinates ---- */}
+        {/* ---- NEW: Cell Tower ---- */}
         <Suspense fallback={null}>
           <CellTower3D center={center} />
         </Suspense>
+
+
+<Suspense fallback={null}>
+  <WagonRake3D
+    center={center}
+    targetLat={targetLat}
+    targetLng={targetLng}
+    trackOffset={-2}
+    count={23}
+    withEngine={true}
+    wagonScale={0.12}
+    spacing={16}
+    
+    // Yahan Engine ki Values dal kar test karein:
+    engineScale={2} // Agar engine ka size wagon jitna karna hai
+    engineRotYOffset={Math.PI / 2} // Engine ko 90 degree rotate karne ke liye (agar tedha chal raha hai to ise change karein -Math.PI / 2 try karein)
+    engineLateralOffset={-2} // Engine ko left ya right track par adjust karne ke liye
+    engineForwardOffset={0} // Engine ko wagons se aur door ya paas karne ke liye
+  />
+</Suspense>
+
+      
       </Canvas>
     </div>
   );
