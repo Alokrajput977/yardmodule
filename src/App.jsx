@@ -7,8 +7,6 @@ import "./App.css";
 
 const LAT_TO_METERS = 111320;
 const API_POLL_INTERVAL = 5000;
-
-// === NEW AUTOMATION GATE COORDINATES ===
 const AUTO_GATE_LANES = [
   [
     [28.508427948546363, 77.2880108044327],
@@ -19,14 +17,11 @@ const AUTO_GATE_LANES = [
     [28.508293600438243, 77.28813686825025]
   ]
 ];
-
-// === NEW QR CODE SCANNER LOCATIONS ===
 const QR_SCANNER_COORDS = [
   [28.50849576249886, 77.28823060798541],
   [28.508414361828752, 77.2883066991218]
 ];
 
-// === NEW BOOM BARRIER COORDINATES ===
 const BOOM_BARRIER_COORDS = [
   { lat: 28.508367522796796, lng: 77.28795227299241, face: "right" },
   { lat: 28.50829504550769, lng: 77.28803072760286, face: "right" },
@@ -34,7 +29,6 @@ const BOOM_BARRIER_COORDS = [
   { lat: 28.508426170678735, lng: 77.28831644961306, face: "left" }
 ];
 
-// === NEW FLAG AREA COORDINATES ===
 const FLAG_COORDS = [
   [28.50846966825246, 77.28762198229133],
   [28.508491996866137, 77.28773679612478],
@@ -110,9 +104,6 @@ const HEAD_OFFICE_POLYGON = [
   [28.50921721347462, 77.2876475691699], [28.509125822340106, 77.28766336700072], [28.509129292890968, 77.28761334053647], [28.509039058531517, 77.28761860648007], [28.509036744828975, 77.28754751624142], [28.508996255026346, 77.2875448832696], [28.508995098174594, 77.28756989650174], [28.508910647963845, 77.28757252947354], [28.508902549994893, 77.28748432491817], [28.50884470734014, 77.28748300843061], [28.508676963465497, 77.28731844769297], [28.508670022332243, 77.28724209150724], [28.50859714042292, 77.28723945853544], [28.508587885573693, 77.28714467155055], [28.508600610991166, 77.28709727805813], [28.508543925028732, 77.28709332860042], [28.508541611315344, 77.28699854161553], [28.50849070960772, 77.28699590864375], [28.508488395893163, 77.28689453922934], [28.50902401946127, 77.28687215896902], [28.509030960569564, 77.28697616135523], [28.508850491605273, 77.28698406027061], [28.50885743272499, 77.28722497719053], [28.508907177402953, 77.28726973771117], [28.509207958676942, 77.28725788933805],
 ];
 
-// ==========================================
-// PRELOAD GLTF MODELS
-// ==========================================
 useGLTF.preload("/acacia_tree.glb");
 useGLTF.preload("/maple_tree.glb");
 useGLTF.preload("/tree_animate.glb");
@@ -127,10 +118,6 @@ useGLTF.preload("/cell_tower_skyward.glb");
 const TREE_MODELS = [
   "/acacia_tree.glb"
 ];
-
-// ==========================================
-// UTILITY FUNCTIONS & MATERIALS
-// ==========================================
 
 const SLINE_COLORS = {
   ONEPL: "#22C55E",
@@ -313,9 +300,6 @@ const PanBoundsClamp = ({ controlsRef }) => {
   return null;
 };
 
-// ==========================================
-// NEW: REALISTIC BOOM BARRIER COMPONENT
-// ==========================================
 const bbCabinetGeo = new THREE.BoxGeometry(0.6, 1.1, 0.5);
 const bbPivotGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.6, 16);
 const bbArmGeo = new THREE.BoxGeometry(4.0, 0.15, 0.05);
@@ -376,9 +360,6 @@ const BoomBarrier3D = ({ center, isDark }) => {
   );
 };
 
-// ==========================================
-// CUSTOM AUTOMATION GATE COMPONENT
-// ==========================================
 const gantryPoleGeo = new THREE.BoxGeometry(0.15, 4.5, 0.15);
 const gantryBeamGeo = new THREE.BoxGeometry(1, 0.15, 0.15);
 const orangeCabinetGeo = new THREE.BoxGeometry(0.6, 1.2, 0.6);
@@ -455,9 +436,6 @@ const AutomationGate3D = ({ center, isDark }) => {
   );
 };
 
-// ==========================================
-// NEW REALISTIC QR CODE SCANNER
-// ==========================================
 const qrBaseGeo = new THREE.CylinderGeometry(0.35, 0.45, 0.2, 32);
 const qrPoleGeo = new THREE.CylinderGeometry(0.08, 0.08, 2.0, 32);
 const qrBodyGeo = new THREE.BoxGeometry(0.7, 1.1, 0.25);
@@ -531,9 +509,6 @@ const QRCodeScanner3D = ({ center, isDark }) => {
   );
 };
 
-// ==========================================
-// PROCEDURAL ANIMATED FLAG
-// ==========================================
 function createIndianFlagTexture() {
   const canvas = document.createElement("canvas");
   canvas.width = 600;
@@ -594,9 +569,6 @@ const CustomAnimatedFlag = ({ position }) => {
   );
 };
 
-// ==========================================
-// FLAG MEMORIAL
-// ==========================================
 const flagPillarGeo = new THREE.CylinderGeometry(0.15, 0.2, 1.2, 12);
 
 const FlagMemorial3D = ({ center, isDark }) => {
@@ -718,9 +690,6 @@ const FlagMemorial3D = ({ center, isDark }) => {
   );
 };
 
-// ==========================================
-// 3D TREES & GREENERY AREA
-// ==========================================
 const TreeModel = ({ url, position, scale, rotation }) => {
   const { scene } = useGLTF(url);
   return <Clone object={scene} position={position} scale={scale} rotation={rotation} castShadow receiveShadow />;
@@ -769,13 +738,6 @@ const GreeneryArea3D = ({ center, isDark }) => {
   );
 };
 
-// ==========================================
-// 3D ROAD FILLING THE REAL GAPS BETWEEN THE
-// PARKING WALL LINES (distance-field raster road)
-// PLUS the whole marked parking area (PARKING_COORDS),
-// so the road runs continuously from the terminal
-// gates across every lane and the parking block.
-// ==========================================
 const ROAD_GRID_STEP = 0.9;
 const ROAD_WALL_CLEARANCE = 0.18;
 const ROAD_MAX_REACH = 27.0;
@@ -1060,9 +1022,6 @@ const ParkingRoad3D = ({ center, isDark }) => {
   );
 };
 
-// ==========================================
-// SMALL PARKING WALL WITH YELLOW/BLACK STRIPES
-// ==========================================
 const smallWallSkinGeo = new THREE.BoxGeometry(1, 0.8, 0.3);
 const smallWallPostGeo = new THREE.BoxGeometry(0.2, 1.2, 0.2);
 const smallWallBaseGeo = new THREE.BoxGeometry(1, 0.15, 0.4);
@@ -1165,18 +1124,11 @@ const ParkingWall3D = ({ center, isDark }) => {
   );
 };
 
-// ==========================================
-// OTHER YARD ENTITIES 
-// ==========================================
-
 const parkingStripeGeo = new THREE.BoxGeometry(0.1, 0.02, 5);
 const parkingCrossGeo = new THREE.BoxGeometry(2.6, 0.02, 0.1);
 const parkingBarrierGeo = new THREE.BoxGeometry(1.7, 1, 0.6);
 const parkingStripeMaterial = new THREE.MeshBasicMaterial({ color: "#FFFFFF" });
 
-// ==========================================
-// GLTF REACH STACKER FIELD
-// ==========================================
 const ReachStackerField3D = ({ machines, center, isDark }) => {
   const { scene } = useGLTF("/container_loader.glb");
   const [hoverIndex, setHoverIndex] = useState(-1);
@@ -1318,11 +1270,6 @@ const wallPillarCapGeo = new THREE.CylinderGeometry(0, WALL_THICKNESS + 0.5, 0.3
 const wallTrimGeo = new THREE.BoxGeometry(1, 0.2, WALL_THICKNESS + 0.1);
 const wallSkinMaterial = new THREE.MeshStandardMaterial({ color: "#E6C280", roughness: 0.8 });
 
-// ==========================================
-// NEW: SIDE BOUNDARY GATE (replaces wall segment
-// between BOUNDARY_WALL_COORDS[1] and [2])
-// Matches the blue double swing-gate reference photo
-// ==========================================
 const NEW_GATE_P1 = BOUNDARY_WALL_COORDS[1];
 const NEW_GATE_P2 = BOUNDARY_WALL_COORDS[2];
 const SIDE_GATE_SEGMENT_INDEX = 1;
@@ -1858,9 +1805,6 @@ const InstancedContainers = ({ containers, isDark, onClick }) => {
   );
 };
 
-// ==========================================
-// GLTF TRACK CRANE FIELD
-// ==========================================
 const CraneField3D = ({ cranes, center, isDark }) => {
   const { scene } = useGLTF("/crane.glb");
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -2585,9 +2529,6 @@ const MergedSlots = ({ slots, center, isDark, onClick }) => {
   );
 };
 
-// ==========================================
-// NEW: Cell Tower component using the GLTF model
-// ==========================================
 const CellTower3D = ({ center }) => {
   const { scene } = useGLTF("/cell_tower_skyward.glb");
   const lngScale = Math.cos((center.lat * Math.PI) / 180);
@@ -2602,21 +2543,14 @@ const CellTower3D = ({ center }) => {
   );
 };
 
-// ==========================================
-// NEW: Train Engine and Wagons on track
-// ==========================================
-
-// Helper: 100% Aapka original code. Ise bilkul touch nahi kiya gaya hai.
 function getTrackPositionAndAngle(center, targetLat, targetLng, trackOffset) {
   const lngScale = Math.cos((center.lat * Math.PI) / 200);
   const x = (targetLng - center.lng) * LAT_TO_METERS * lngScale;
   const z = -(targetLat - center.lat) * LAT_TO_METERS;
-
-  // Compute track direction using TRACK_COORDS
   const trackPoints = TRACK_COORDS.map(c => ({
     lat: c[0],
     lng: c[1],
-    x: (c[2] - center.lng) * LAT_TO_METERS * lngScale, // Aapka original c[2] wapas laga diya hai
+    x: (c[2] - center.lng) * LAT_TO_METERS * lngScale, 
     z: -(c[0] - center.lat) * LAT_TO_METERS,
   }));
 
@@ -2636,7 +2570,6 @@ function getTrackPositionAndAngle(center, targetLat, targetLng, trackOffset) {
     angle = Math.atan2(dz, dx);
   }
 
-  // Lateral offset perpendicular to track
   const perpX = -Math.sin(angle);
   const perpZ = Math.cos(angle);
   const finalX = x + perpX * trackOffset;
@@ -2644,18 +2577,15 @@ function getTrackPositionAndAngle(center, targetLat, targetLng, trackOffset) {
   return { x: finalX, z: finalZ, angle };
 }
 
-// Wagon Rake component
-const WagonRake3D = ({ 
-  center, 
-  targetLat, 
-  targetLng, 
-  trackOffset, 
-  count, 
-  withEngine = false, 
-  wagonScale = 1.5, 
+const WagonRake3D = ({
+  center,
+  targetLat,
+  targetLng,
+  trackOffset,
+  count,
+  withEngine = false,
+  wagonScale = 1.5,
   spacing = 4.5,
-  
-  // NAYE PROPS: Sirf Engine ke liye
   engineScale = 2.0,
   engineRotYOffset = 0,       // Engine ko gol ghumane ke liye (e.g. Math.PI/2)
   engineLateralOffset = 0,    // Engine ko left/right khiskane ke liye
@@ -2666,15 +2596,10 @@ const WagonRake3D = ({
 
   const { x, z, angle } = getTrackPositionAndAngle(center, targetLat, targetLng, trackOffset);
 
-  // Direction vector along the track
   const dirX = -Math.sin(angle);
   const dirZ = -Math.cos(angle);
-  
-  // Perpendicular vector for lateral (left/right) shifting
   const perpX = -Math.sin(angle);
   const perpZ = Math.cos(angle);
-
-  // Aapka original loop logic
   const items = [];
   if (withEngine) {
     items.push({ type: 'engine', offset: 0, scale: engineScale });
@@ -2687,22 +2612,18 @@ const WagonRake3D = ({
   return (
     <group>
       {items.map((item, index) => {
-        // Aapki original calculation (Wagons bilkul is par render honge)
         let posX = x + dirX * item.offset;
         let posZ = z + dirZ * item.offset;
         let rotY = -angle + Math.PI / 2;
         let scaleVal = item.scale;
-
-        // NEW LOGIC: Agar yeh item "engine" hai, tabhi position/rotation change karo
         if (item.type === 'engine') {
-          rotY += engineRotYOffset; 
-          // Engine ko uske naye offsets ke hisaab se track par adjust karo
+          rotY += engineRotYOffset;
           posX += (perpX * engineLateralOffset) + (dirX * engineForwardOffset);
           posZ += (perpZ * engineLateralOffset) + (dirZ * engineForwardOffset);
         }
 
         const model = item.type === 'engine' ? engineScene : wagonScene;
-        
+
         return (
           <Clone
             key={index}
@@ -2869,7 +2790,6 @@ function App() {
     return <div className={`screen-message ${isDark ? "dark" : "light"}`}>Loading Live 3D Engine…</div>;
   }
 
-  // Define target location for all rakes
   const targetLat = 28.51402777568197; // from your code
   const targetLng = 77.286057243871;
 
@@ -3012,26 +2932,24 @@ function App() {
         </Suspense>
 
 
-<Suspense fallback={null}>
-  <WagonRake3D
-    center={center}
-    targetLat={targetLat}
-    targetLng={targetLng}
-    trackOffset={-2}
-    count={23}
-    withEngine={true}
-    wagonScale={0.12}
-    spacing={16}
-    
-    // Yahan Engine ki Values dal kar test karein:
-    engineScale={2} // Agar engine ka size wagon jitna karna hai
-    engineRotYOffset={Math.PI / 2} // Engine ko 90 degree rotate karne ke liye (agar tedha chal raha hai to ise change karein -Math.PI / 2 try karein)
-    engineLateralOffset={-2} // Engine ko left ya right track par adjust karne ke liye
-    engineForwardOffset={0} // Engine ko wagons se aur door ya paas karne ke liye
-  />
-</Suspense>
+        <Suspense fallback={null}>
+          <WagonRake3D
+            center={center}
+            targetLat={targetLat}
+            targetLng={targetLng}
+            trackOffset={-2}
+            count={10}
+            withEngine={true}
+            wagonScale={0.12}
+            spacing={16}
+            engineScale={2} // Agar engine ka size wagon jitna karna hai
+            engineRotYOffset={Math.PI / 2} // Engine ko 90 degree rotate karne ke liye (agar tedha chal raha hai to ise change karein -Math.PI / 2 try karein)
+            engineLateralOffset={-2} // Engine ko left ya right track par adjust karne ke liye
+            engineForwardOffset={-8}
+          />
+        </Suspense>
 
-      
+
       </Canvas>
     </div>
   );
