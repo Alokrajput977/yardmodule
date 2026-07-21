@@ -104,6 +104,8 @@ const HEAD_OFFICE_POLYGON = [
   [28.50921721347462, 77.2876475691699], [28.509125822340106, 77.28766336700072], [28.509129292890968, 77.28761334053647], [28.509039058531517, 77.28761860648007], [28.509036744828975, 77.28754751624142], [28.508996255026346, 77.2875448832696], [28.508995098174594, 77.28756989650174], [28.508910647963845, 77.28757252947354], [28.508902549994893, 77.28748432491817], [28.50884470734014, 77.28748300843061], [28.508676963465497, 77.28731844769297], [28.508670022332243, 77.28724209150724], [28.50859714042292, 77.28723945853544], [28.508587885573693, 77.28714467155055], [28.508600610991166, 77.28709727805813], [28.508543925028732, 77.28709332860042], [28.508541611315344, 77.28699854161553], [28.50849070960772, 77.28699590864375], [28.508488395893163, 77.28689453922934], [28.50902401946127, 77.28687215896902], [28.509030960569564, 77.28697616135523], [28.508850491605273, 77.28698406027061], [28.50885743272499, 77.28722497719053], [28.508907177402953, 77.28726973771117], [28.509207958676942, 77.28725788933805],
 ];
 
+
+
 useGLTF.preload("/acacia_tree.glb");
 useGLTF.preload("/maple_tree.glb");
 useGLTF.preload("/tree_animate.glb");
@@ -124,6 +126,8 @@ const SLINE_COLORS = {
   MSC: "#3B82F6",
   default: "#EF4444",
 };
+
+
 
 function getContainerColor(container) {
   const line = container.originalData?.SLINECODE?.trim().toUpperCase() || "";
@@ -800,7 +804,7 @@ roadArrowGeo.setAttribute("position", new THREE.Float32BufferAttribute([
 ], 3));
 roadArrowGeo.setIndex([0, 1, 2, 3, 4, 5, 4, 6, 5]);
 roadArrowGeo.computeVertexNormals();
-const roadArrowMaterial = new THREE.MeshStandardMaterial({ color: "#F8FAFC", roughness: 0.5, emissive: "#F8FAFC", emissiveIntensity: 0.08, side: THREE.DoubleSide });
+const roadArrowMaterial = new THREE.MeshStandardMaterial({ color: "#F8FAFC", sroughness: 0.5, emissive: "#F8FAFC", emissiveIntensity: 0.08, side: THREE.DoubleSide });
 
 function createAsphaltTexture(isDark) {
   const canvas = document.createElement("canvas");
@@ -830,7 +834,7 @@ const ParkingRoad3D = ({ center, isDark }) => {
   );
 
   const { roadGeometry, dashMatrices, arrowMatrices } = useMemo(() => {
-    const lngScale = Math.cos((center.lat * Math.PI) / 180);
+    const lngScale = Math.cos((center.lat * Math.PI) / 200);
 
     const segments = [];
     PARKING_WALL_LINES.forEach((line, lineIdx) => {
@@ -2640,7 +2644,7 @@ const WagonRake3D = ({
           <Clone
             key={index}
             object={model}
-            position={[posX, 0.3, posZ]}
+            position={[posX, 0.4, posZ]}
             rotation={[0, rotY, 0]}
             scale={[scaleVal, scaleVal, scaleVal]}
             castShadow
@@ -2949,7 +2953,7 @@ function App() {
             center={center}
             targetLat={targetLat}
             targetLng={targetLng}
-            trackOffset={-2}
+            trackOffset={-4}
             count={10}
             withEngine={true}
             wagonScale={0.12}
