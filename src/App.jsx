@@ -45,7 +45,7 @@ const OUTGATE_POLYGON = [[28.507732029353566, 77.2888193076692], [28.50753346046
 const PARKING_COORDS = [[28.508913326434662, 77.28874674032724], [28.509292656765698, 77.28875681637923], [28.509269676368607, 77.28798769296093], [28.508928505264922, 77.28800848008274], [28.508698700275726, 77.28802926720272], [28.50872698399292, 77.28818751752696], [28.50880240720342, 77.28841215252098], [28.50884247576206, 77.28858984885952]];
 
 const GREENERY_COORDS = [
-  [28.50845790390383, 77.28776841227777], [28.50845246317079, 77.28711093642693], [28.508468912519486, 77.28678841362725], [28.508432379293147, 77.28678573141838], [28.508873091198694, 77.28774949751877], [28.508745814583012, 77.28775620304648], [28.50868689017281, 77.28775754415094], [28.50913471486485, 77.28773474537542], [28.509178318746454, 77.28772669874877], [28.509104074288622, 77.28773340427098], [28.509257277080785, 77.28786349140184], [28.507810249414163, 77.2868081762356], [28.507707720008348, 77.28681219954821], [28.507365339995083, 77.28682358116212],[28.507355987855256, 77.28682022830765],[28.50896276885772, 77.28954984856144],[28.509007590876884, 77.28953760687853],[28.50914743545424, 77.28953046589682],[28.509148331893247, 77.28944579425661],[28.50904882711768, 77.28945293523832],[28.508963665298303, 77.28946823734196]
+  [28.50845790390383, 77.28776841227777], [28.50845246317079, 77.28711093642693], [28.508468912519486, 77.28678841362725], [28.508432379293147, 77.28678573141838], [28.508873091198694, 77.28774949751877], [28.508745814583012, 77.28775620304648], [28.50868689017281, 77.28775754415094], [28.50913471486485, 77.28773474537542], [28.509178318746454, 77.28772669874877], [28.509104074288622, 77.28773340427098], [28.509257277080785, 77.28786349140184], [28.507810249414163, 77.2868081762356], [28.507707720008348, 77.28681219954821], [28.507365339995083, 77.28682358116212], [28.507355987855256, 77.28682022830765], [28.50896276885772, 77.28954984856144], [28.509007590876884, 77.28953760687853], [28.50914743545424, 77.28953046589682], [28.509148331893247, 77.28944579425661], [28.50904882711768, 77.28945293523832], [28.508963665298303, 77.28946823734196]
 ];
 
 const PARKING_WALL_LINES = [
@@ -104,6 +104,16 @@ const HEAD_OFFICE_POLYGON = [
   [28.50921721347462, 77.2876475691699], [28.509125822340106, 77.28766336700072], [28.509129292890968, 77.28761334053647], [28.509039058531517, 77.28761860648007], [28.509036744828975, 77.28754751624142], [28.508996255026346, 77.2875448832696], [28.508995098174594, 77.28756989650174], [28.508910647963845, 77.28757252947354], [28.508902549994893, 77.28748432491817], [28.50884470734014, 77.28748300843061], [28.508676963465497, 77.28731844769297], [28.508670022332243, 77.28724209150724], [28.50859714042292, 77.28723945853544], [28.508587885573693, 77.28714467155055], [28.508600610991166, 77.28709727805813], [28.508543925028732, 77.28709332860042], [28.508541611315344, 77.28699854161553], [28.50849070960772, 77.28699590864375], [28.508488395893163, 77.28689453922934], [28.50902401946127, 77.28687215896902], [28.509030960569564, 77.28697616135523], [28.508850491605273, 77.28698406027061], [28.50885743272499, 77.28722497719053], [28.508907177402953, 77.28726973771117], [28.509207958676942, 77.28725788933805],
 ];
 
+// Small garden path/bed running alongside a wall — yellow/black flower-pot-sized edging blocks
+// around the border, reddish soil filling the inside.
+const GARDEN_PATH_COORDS = [
+  [28.508629238165717, 77.28775429210175],
+  [28.508625741155715, 77.28778214894476],
+  [28.509214111453613, 77.28771051706273],
+  [28.509215859948863, 77.28774135856749],
+];
+
+
 
 
 useGLTF.preload("/acacia_tree.glb");
@@ -114,6 +124,7 @@ useGLTF.preload("/tree_gn.glb");
 useGLTF.preload("/crane.glb");
 useGLTF.preload("/container_loader.glb");
 useGLTF.preload("/train.glb");
+useGLTF.preload("/train2.glb");
 useGLTF.preload("/wagon.glb");              // <-- added wagon preload
 useGLTF.preload("/cell_tower_skyward.glb");
 
@@ -129,7 +140,10 @@ const SLINE_COLORS = {
 
 
 
+const EMPTY_SLOT_COLOR = "#9CA3AF";
+
 function getContainerColor(container) {
+  if (container.isEmpty) return EMPTY_SLOT_COLOR;
   const line = container.originalData?.SLINECODE?.trim().toUpperCase() || "";
   return SLINE_COLORS[line] || SLINE_COLORS.default;
 }
@@ -573,7 +587,7 @@ const CustomAnimatedFlag = ({ position }) => {
   );
 };
 
-const flagPillarGeo = new THREE.CylinderGeometry(0.15, 0.2, 1.2, 12);
+const flagPillarGeo = new THREE.CylinderGeometry(0.15, 0.1, 1.5, 12);
 
 const FlagMemorial3D = ({ center, isDark }) => {
   const [hovered, setHovered] = useState(false);
@@ -1862,87 +1876,158 @@ const CraneField3D = ({ cranes, center, isDark }) => {
   );
 };
 
-const TRACK_CENTERS = [-6, -2, 2, 6];
-const TRACK_GAUGE_HALF = 1.676 / 2;
+// 4 parallel realistic railway lines (Track A, B, C, D) — each with its own gravel bed, wooden
+// sleepers poking out on both sides, and two metal rails on top, like real yard tracks.
+const TRACK_LANES = [
+  { label: "A", offset: -6 },
+  { label: "B", offset: -2 },
+  { label: "C", offset: 2 },
+  { label: "D", offset: 6 },
+];
+const TRACK_GAUGE_HALF = 1.676 / 2; // real standard-gauge half-width
 const TRACK_RAIL_W = 0.15;
-const TRACK_POLE_SPACING = 40;
-const TRACK_SIGNAL_IS_GREEN = [true, false, true, false];
+const TRACK_POLE_SPACING = 55;
+const TRACK_SLEEPER_SPACING = 0.65; // dense, real tie spacing
+const TRACK_JOIN_OVERLAP = 0.5; // extra length added at each segment so joints never show a gap
 
-const railwayBallastGeo = new THREE.BoxGeometry(20, 0.4, 1);
-const railwayRailGeo = new THREE.BoxGeometry(TRACK_RAIL_W, 0.2, 1);
-const railwayWireGeo = new THREE.BoxGeometry(0.05, 0.05, 1);
-const railwayPolePostGeo = new THREE.BoxGeometry(0.4, 10, 0.4);
-const railwayPoleCrossbeamGeo = new THREE.BoxGeometry(18.4, 0.3, 0.4);
-const railwaySignalBoxGeo = new THREE.BoxGeometry(0.7, 1.4, 0.5);
-const railwaySignalLightGeo = new THREE.CircleGeometry(0.25, 16);
-const railwayWireMaterial = new THREE.MeshStandardMaterial({ color: "#1F2937", metalness: 0.9, roughness: 0.1 });
-const railwayPostMaterial = new THREE.MeshStandardMaterial({ color: "#475569", metalness: 0.6, roughness: 0.5 });
-const railwayCrossbeamMaterial = new THREE.MeshStandardMaterial({ color: "#334155", metalness: 0.7 });
+const railwayBallastGeo = new THREE.BoxGeometry(3.2, 0.35, 1);
+const railwayRailGeo = new THREE.BoxGeometry(TRACK_RAIL_W, 0.14, 1);
+// Wooden sleepers (railway ties) — sit on top of the ballast bed and stick out past the rails on
+// both sides, exactly like the reference photo. This is what reads as "real railway track".
+const railwaySleeperGeo = new THREE.BoxGeometry(2.6, 0.16, 0.22);
+// Trackside signal pole (stands beside the whole corridor, single head)
+const railwaySignalPoleGeo = new THREE.CylinderGeometry(0.06, 0.08, 2.6, 8);
+const railwaySignalBoxGeo = new THREE.BoxGeometry(0.42, 0.85, 0.3);
+const railwaySignalLightGeo = new THREE.CircleGeometry(0.15, 16);
+// Point / switch machine — small trackside box marking where the line can be switched
+const railwayPointMachineGeo = new THREE.BoxGeometry(0.5, 0.3, 0.38);
+const railwayPointLeverGeo = new THREE.BoxGeometry(0.07, 0.32, 0.07);
+
+const railwaySleeperMaterial = new THREE.MeshStandardMaterial({ color: "#6B4A32", roughness: 0.92 });
+const railwaySignalPoleMaterial = new THREE.MeshStandardMaterial({ color: "#52525B", metalness: 0.5, roughness: 0.5 });
 const railwaySignalBoxMaterial = new THREE.MeshStandardMaterial({ color: "#111827" });
 const railwayGreenMaterial = new THREE.MeshStandardMaterial({ color: "#10B981", emissive: "#10B981", emissiveIntensity: 3 });
 const railwayRedMaterial = new THREE.MeshStandardMaterial({ color: "#EF4444", emissive: "#EF4444", emissiveIntensity: 3 });
+const railwayPointMachineMaterial = new THREE.MeshStandardMaterial({ color: "#DC2626", roughness: 0.6, metalness: 0.3 });
+const railwayPointLeverMaterial = new THREE.MeshStandardMaterial({ color: "#FACC15", metalness: 0.4, roughness: 0.5 });
+
+const RAIL_Y = 0.61;      // rails sit on top of the sleepers
+const SLEEPER_Y = 0.43;   // sleepers sit on top of the ballast bed
+const BALLAST_Y = 0.175;  // ballast bed itself
+const SIGNAL_SIDE_X = TRACK_LANES[TRACK_LANES.length - 1].offset + 2.3; // signal pole beside the whole corridor
+const POINT_SIDE_X = TRACK_LANES[0].offset - 2.0; // point/switch machine on the opposite side
 
 const Railway3D = ({ center, isDark }) => {
   const {
-    ballastMatrices, railMatrices, wireMatrices,
-    postMatrices, crossbeamMatrices, signalBoxMatrices,
+    ballastMatrices, railMatrices, sleeperMatrices,
+    signalPoleMatrices, signalBoxMatrices,
     greenLightMatrices, redLightMatrices,
+    pointMachineMatrices, pointLeverMatrices,
+    laneLabels,
   } = useMemo(() => {
     const lngScale = Math.cos((center.lat * Math.PI) / 180);
     const pts = TRACK_COORDS.map((c) => ({
       x: (c[1] - center.lng) * LAT_TO_METERS * lngScale, z: -(c[0] - center.lat) * LAT_TO_METERS,
     }));
 
-    const ballast = [], rails = [], wires = [], posts = [], crossbeams = [], signalBoxes = [], greenLights = [], redLights = [];
+    const ballast = [], rails = [], sleepers = [];
+    const signalPoles = [], signalBoxes = [], greenLights = [], redLights = [];
+    const pointMachines = [], pointLevers = [];
+
+    let poleCounter = 0;
 
     for (let i = 0; i < pts.length - 1; i++) {
       const p1 = pts[i]; const p2 = pts[i + 1];
-      const len = Math.hypot(p2.x - p1.x, p2.z - p1.z);
+      const rawLen = Math.hypot(p2.x - p1.x, p2.z - p1.z);
+      // Overlap each segment slightly at both ends so consecutive segments always fuse together
+      // with no visible gap at the bends — the whole line reads as one continuous connected track.
+      const len = rawLen + TRACK_JOIN_OVERLAP;
       const cx = (p1.x + p2.x) / 2; const cz = (p1.z + p2.z) / 2;
       const angle = Math.atan2(p2.x - p1.x, p2.z - p1.z);
       const parentPos = [cx, 0.05, cz];
 
-      ballast.push(composeWorldMatrix(parentPos, angle, [0, 0.2, 0], [1, 1, len]));
+      TRACK_LANES.forEach((lane) => {
+        ballast.push(composeWorldMatrix(parentPos, angle, [lane.offset, BALLAST_Y, 0], [1, 1, len]));
+        rails.push(composeWorldMatrix(parentPos, angle, [lane.offset - TRACK_GAUGE_HALF, RAIL_Y, 0], [1, 1, len]));
+        rails.push(composeWorldMatrix(parentPos, angle, [lane.offset + TRACK_GAUGE_HALF, RAIL_Y, 0], [1, 1, len]));
 
-      TRACK_CENTERS.forEach((tc) => {
-        rails.push(composeWorldMatrix(parentPos, angle, [tc - TRACK_GAUGE_HALF, 0.5, 0], [1, 1, len]));
-        rails.push(composeWorldMatrix(parentPos, angle, [tc + TRACK_GAUGE_HALF, 0.5, 0], [1, 1, len]));
-        wires.push(composeWorldMatrix(parentPos, angle, [tc, 9.5, 0], [1, 1, len]));
+        // Dense wooden sleepers along this segment for this lane
+        const numSleepers = Math.max(1, Math.floor(rawLen / TRACK_SLEEPER_SPACING));
+        for (let s = 0; s <= numSleepers; s++) {
+          const zOffset = -rawLen / 2 + s * TRACK_SLEEPER_SPACING;
+          if (zOffset > rawLen / 2 + 0.01) break;
+          sleepers.push(composeWorldMatrix(parentPos, angle, [lane.offset, SLEEPER_Y, zOffset], [1, 1, 1]));
+        }
       });
 
-      const numPoles = Math.floor(len / TRACK_POLE_SPACING);
+      // One clean trackside signal per pole spacing (single head, beside the whole corridor)
+      const numPoles = Math.floor(rawLen / TRACK_POLE_SPACING);
       for (let k = 0; k <= numPoles; k++) {
-        const zOffset = -len / 2 + k * TRACK_POLE_SPACING;
-        posts.push(composeWorldMatrix(parentPos, angle, [-9.5, 5, zOffset], [1, 1, 1]));
-        crossbeams.push(composeWorldMatrix(parentPos, angle, [-0.5, 9.5, zOffset], [1, 1, 1]));
-        TRACK_CENTERS.forEach((tc, idx) => {
-          signalBoxes.push(composeWorldMatrix(parentPos, angle, [tc, 8.5, zOffset + 0.2], [1, 1, 1]));
-          const lightMatrix = composeWorldMatrix(parentPos, angle, [tc, 8.5, zOffset + 0.46], [1, 1, 1]);
-          (TRACK_SIGNAL_IS_GREEN[idx] ? greenLights : redLights).push(lightMatrix);
-        });
+        const zOffset = -rawLen / 2 + k * TRACK_POLE_SPACING;
+        signalPoles.push(composeWorldMatrix(parentPos, angle, [SIGNAL_SIDE_X, 1.3, zOffset], [1, 1, 1]));
+        signalBoxes.push(composeWorldMatrix(parentPos, angle, [SIGNAL_SIDE_X, 2.5, zOffset], [1, 1, 1]));
+        const lightMatrix = composeWorldMatrix(parentPos, angle, [SIGNAL_SIDE_X, 2.5, zOffset + 0.16], [1, 1, 1]);
+        (poleCounter % 2 === 0 ? greenLights : redLights).push(lightMatrix);
+        poleCounter++;
       }
     }
-    return { ballastMatrices: ballast, railMatrices: rails, wireMatrices: wires, postMatrices: posts, crossbeamMatrices: crossbeams, signalBoxMatrices: signalBoxes, greenLightMatrices: greenLights, redLightMatrices: redLights };
+
+    // Point / switch machines at each interior junction (where the corridor changes direction)
+    for (let i = 1; i < pts.length - 1; i++) {
+      const p = pts[i];
+      const prev = pts[i - 1];
+      const inAngle = Math.atan2(p.x - prev.x, p.z - prev.z);
+      const parentPos = [p.x, 0, p.z];
+      pointMachines.push(composeWorldMatrix(parentPos, inAngle, [POINT_SIDE_X, 0.18, 0], [1, 1, 1]));
+      pointLevers.push(composeWorldMatrix(parentPos, inAngle, [POINT_SIDE_X, 0.48, 0.05], [1, 1, 1]));
+    }
+
+    // Letter label ("A"/"B"/"C"/"D") standing beside the start of each lane
+    const p0 = pts[0]; const p1 = pts[1];
+    const startAngle = Math.atan2(p1.x - p0.x, p1.z - p0.z);
+    const perpX = Math.cos(startAngle), perpZ = -Math.sin(startAngle);
+    const labels = TRACK_LANES.map((lane) => ({
+      label: lane.label,
+      x: p0.x + perpX * lane.offset,
+      z: p0.z + perpZ * lane.offset,
+    }));
+
+    return {
+      ballastMatrices: ballast, railMatrices: rails, sleeperMatrices: sleepers,
+      signalPoleMatrices: signalPoles, signalBoxMatrices: signalBoxes,
+      greenLightMatrices: greenLights, redLightMatrices: redLights,
+      pointMachineMatrices: pointMachines, pointLeverMatrices: pointLevers,
+      laneLabels: labels,
+    };
   }, [center]);
 
   const { ballastMaterial, railMaterial } = useMemo(() => ({
-    ballastMaterial: new THREE.MeshStandardMaterial({ color: isDark ? "#3F3F46" : "#D4D4D8", roughness: 0.9 }),
-    railMaterial: new THREE.MeshStandardMaterial({ color: isDark ? "#9CA3AF" : "#6B7280", metalness: 0.8, roughness: 0.2 }),
+    ballastMaterial: new THREE.MeshStandardMaterial({ color: isDark ? "#3F3F46" : "#8B8680", roughness: 0.95 }),
+    railMaterial: new THREE.MeshStandardMaterial({ color: isDark ? "#9CA3AF" : "#71717A", metalness: 0.85, roughness: 0.25 }),
   }), [isDark]);
 
   return (
     <group>
       <InstancedStatic geometry={railwayBallastGeo} material={ballastMaterial} matrices={ballastMatrices} castShadow receiveShadow />
+      <InstancedStatic geometry={railwaySleeperGeo} material={railwaySleeperMaterial} matrices={sleeperMatrices} castShadow receiveShadow />
       <InstancedStatic geometry={railwayRailGeo} material={railMaterial} matrices={railMatrices} castShadow receiveShadow />
-      <InstancedStatic geometry={railwayWireGeo} material={railwayWireMaterial} matrices={wireMatrices} />
-      <InstancedStatic geometry={railwayPolePostGeo} material={railwayPostMaterial} matrices={postMatrices} castShadow />
-      <InstancedStatic geometry={railwayPoleCrossbeamGeo} material={railwayCrossbeamMaterial} matrices={crossbeamMatrices} castShadow />
+      <InstancedStatic geometry={railwaySignalPoleGeo} material={railwaySignalPoleMaterial} matrices={signalPoleMatrices} castShadow />
       <InstancedStatic geometry={railwaySignalBoxGeo} material={railwaySignalBoxMaterial} matrices={signalBoxMatrices} castShadow />
       <InstancedStatic geometry={railwaySignalLightGeo} material={railwayGreenMaterial} matrices={greenLightMatrices} />
       <InstancedStatic geometry={railwaySignalLightGeo} material={railwayRedMaterial} matrices={redLightMatrices} />
+      <InstancedStatic geometry={railwayPointMachineGeo} material={railwayPointMachineMaterial} matrices={pointMachineMatrices} castShadow receiveShadow />
+      <InstancedStatic geometry={railwayPointLeverGeo} material={railwayPointLeverMaterial} matrices={pointLeverMatrices} castShadow />
+      {laneLabels.map((l) => (
+        <Html key={l.label} position={[l.x, 1.4, l.z]} center style={{ pointerEvents: "none" }}>
+          <div style={{ fontWeight: "bold", fontSize: "13px", color: "#fff", background: "#1F2937", border: "2px solid #fff", padding: "3px 10px", borderRadius: "4px", whiteSpace: "nowrap" }}>
+            Track {l.label}
+          </div>
+        </Html>
+      ))}
     </group>
   );
 };
+
 
 const shutterFrameGeo = new THREE.BoxGeometry(4, 8, 0.1);
 const shutterHandleGeo = new THREE.BoxGeometry(1, 0.5, 0.05);
@@ -2434,6 +2519,66 @@ const WorkshopShed3D = ({ polygon, center, isDark, label }) => {
   );
 };
 
+// === Small garden path/bed with yellow-black flower-pot-sized edging and reddish soil ===
+const gardenCurbGeo = new THREE.BoxGeometry(1, 0.22, 0.28);
+const gardenCurbYellowMaterial = new THREE.MeshStandardMaterial({ color: "#FACC15", roughness: 0.6 });
+const gardenCurbBlackMaterial = new THREE.MeshStandardMaterial({ color: "#111827", roughness: 0.6 });
+
+const GardenBed3D = ({ center, isDark }) => {
+  const { shape, yellowMatrices, blackMatrices } = useMemo(() => {
+    const lngScale = Math.cos((center.lat * Math.PI) / 180);
+    const pts = GARDEN_PATH_COORDS.map((c) => [
+      (c[1] - center.lng) * LAT_TO_METERS * lngScale,
+      -(c[0] - center.lat) * LAT_TO_METERS,
+    ]);
+
+    const s = new THREE.Shape();
+    pts.forEach(([x, z], i) => { if (i === 0) s.moveTo(x, z); else s.lineTo(x, z); });
+    s.closePath();
+
+    const yellow = [], black = [];
+    const CURB_SEG = 0.4; // small, flower-pot scale edging blocks
+    for (let i = 0; i < pts.length; i++) {
+      const p1 = pts[i];
+      const p2 = pts[(i + 1) % pts.length];
+      const dx = p2[0] - p1[0], dz = p2[1] - p1[1];
+      const dist = Math.hypot(dx, dz);
+      if (dist < 0.01) continue;
+      const angle = Math.atan2(dz, dx);
+      const numSeg = Math.max(1, Math.round(dist / CURB_SEG));
+      const segLen = dist / numSeg;
+      for (let s2 = 0; s2 < numSeg; s2++) {
+        const cx = p1[0] + (dx / dist) * (s2 + 0.5) * segLen;
+        const cz = p1[1] + (dz / dist) * (s2 + 0.5) * segLen;
+        const m = composeWorldMatrix([cx, 0.11, cz], -angle, [0, 0, 0], [segLen * 0.94, 1, 1]);
+        (s2 % 2 === 0 ? yellow : black).push(m);
+      }
+    }
+
+    return { shape: s, yellowMatrices: yellow, blackMatrices: black };
+  }, [center]);
+
+  return (
+    <group>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]} receiveShadow>
+        <shapeGeometry args={[shape]} />
+        <meshStandardMaterial color={isDark ? "#5C3A21" : "#8B5A2B"} roughness={1} />
+      </mesh>
+      <InstancedStatic geometry={gardenCurbGeo} material={gardenCurbYellowMaterial} matrices={yellowMatrices} castShadow receiveShadow />
+      <InstancedStatic geometry={gardenCurbGeo} material={gardenCurbBlackMaterial} matrices={blackMatrices} castShadow receiveShadow />
+    </group>
+  );
+};
+
+// === Canteen building with an entrance parking apron sized like the yard's parking spots ===
+const CANTEEN_WIDTH = 9;
+const CANTEEN_DEPTH = 6;
+const CANTEEN_WALL_H = 3.2;
+const CANTEEN_ROOF_PITCH = 1.4;
+const CANTEEN_SPOT_W = 2.6; // same width as a regular yard parking spot
+const CANTEEN_SPOT_L = 5.0; // same length as a regular yard parking spot
+
+
 const SLOT_BASE_LIGHT = new THREE.Color("#E5E7EB");
 const SLOT_BASE_DARK = new THREE.Color("#374151");
 const SLOT_HOVER_LIGHT = new THREE.Color("#F3F4F6");
@@ -2469,7 +2614,7 @@ const MergedSlots = ({ slots, center, isDark, onClick }) => {
         const z = (lat - center.lat) * LAT_TO_METERS;
         if (i === 0) s.moveTo(x, z); else s.lineTo(x, z);
       });
-      const geo = new THREE.ExtrudeGeometry(s, { depth: 1, bevelEnabled: false });
+      const geo = new THREE.ExtrudeGeometry(s, { depth: 0.08, bevelEnabled: false });
       geo.setAttribute("color", new THREE.BufferAttribute(new Float32Array(geo.attributes.position.count * 3), 3));
       const vertCount = geo.attributes.position.count;
       const triCount = vertCount / 3;
@@ -2535,7 +2680,7 @@ const MergedSlots = ({ slots, center, isDark, onClick }) => {
 const CellTower3D = ({ center }) => {
   const { scene } = useGLTF("/cell_tower_skyward.glb");
   const lngScale = Math.cos((center.lat * Math.PI) / 180);
-  
+
   // Array containing both tower coordinates
   const towers = [
     { lat: 28.509276057250666, lng: 77.28849757459123 }, // Original tower
@@ -2566,7 +2711,7 @@ function getTrackPositionAndAngle(center, targetLat, targetLng, trackOffset) {
   const trackPoints = TRACK_COORDS.map(c => ({
     lat: c[0],
     lng: c[1],
-    x: (c[2] - center.lng) * LAT_TO_METERS * lngScale, 
+    x: (c[2] - center.lng) * LAT_TO_METERS * lngScale,
     z: -(c[0] - center.lat) * LAT_TO_METERS,
   }));
 
@@ -2600,15 +2745,37 @@ const WagonRake3D = ({
   trackOffset,
   count,
   withEngine = false,
+  engineUrl = "/train.glb",
   wagonScale = 1.5,
   spacing = 4.5,
   engineScale = 2.0,
-  engineRotYOffset = 0,       // Engine ko gol ghumane ke liye (e.g. Math.PI/2)
-  engineLateralOffset = 0,    // Engine ko left/right khiskane ke liye
-  engineForwardOffset = 0     // Engine ko aage/peeche khiskane ke liye
+  engineRotYOffset = 0,
+  // engineRightShift: track ke angle ke perpendicular (relative) shift — track ka angle jitna
+  // zyada tilted hoga utna hi ye "left/right" ki jagah "diagonal" jaisa dikh sakta hai.
+  engineRightShift = 0,
+  engineForwardOffset = 0,   // sirf engine ko aage/peeche karne ke liye (wagons se attach karne ke liye)
+  wagonYOffset = 0.4,        // wagons ki ground height
+  engineYOffset = 0.4,       // engine ke base ka ground se height (auto ground-snap ke saath kaam karta hai)
+  lateralOffset = 4,         // poori train (engine+wagons dono) ko left/right shift karne ke liye
+  // engineWorldXShift / engineWorldZShift: DIRECT world-axis shift, track ke angle se koi lena dena nahi.
+  // Map ko top-down se dekho: X axis = ek seedhi horizontal direction, Z axis = seedhi vertical direction.
+  // Inhe use karo agar engineRightShift confusing lag raha ho — ye bilkul straightforward hain.
+  engineWorldXShift = 0,
+  engineWorldZShift = 0
 }) => {
-  const { scene: engineScene } = useGLTF("/train.glb");
+  const { scene: engineScene } = useGLTF(engineUrl);
   const { scene: wagonScene } = useGLTF("/wagon.glb");
+
+  // Engine model ka apna internal pivot/origin ground pe nahi hota (model ke andar hi kahin center/upar set hota hai).
+  // Isliye hum uski bounding box nikaal ke pata karte hain ki model ka sabse "neeche" wala point (min Y) kahan hai,
+  // aur usi ke hisaab se engine ko automatically ground level pe "snap" kar dete hain — ab manual guess-check
+  // ki zaroorat nahi. engineYOffset ab bas "engine ka base kitna upar ground se hona chahiye" (jaise wagons ka
+  // wagonYOffset) — chhota, seedha number, jaise 0.4.
+  const engineBoxMinY = useMemo(() => {
+    if (!engineScene) return 0;
+    const box = new THREE.Box3().setFromObject(engineScene);
+    return box.min.y;
+  }, [engineScene]);
 
   const { x, z, angle } = getTrackPositionAndAngle(center, targetLat, targetLng, trackOffset);
 
@@ -2616,6 +2783,11 @@ const WagonRake3D = ({
   const dirZ = -Math.cos(angle);
   const perpX = -Math.sin(angle);
   const perpZ = Math.cos(angle);
+
+  // Poori rake ko lateralOffset se side me shift karo (dono engine aur wagons pe apply hoga)
+  const baseX = x + perpX * lateralOffset;
+  const baseZ = z + perpZ * lateralOffset;
+
   const items = [];
   if (withEngine) {
     items.push({ type: 'engine', offset: 0, scale: engineScale });
@@ -2628,14 +2800,27 @@ const WagonRake3D = ({
   return (
     <group>
       {items.map((item, index) => {
-        let posX = x + dirX * item.offset;
-        let posZ = z + dirZ * item.offset;
+        let posX = baseX + dirX * item.offset;
+        let posZ = baseZ + dirZ * item.offset;
+        let posY = wagonYOffset;   // default: wagon height
         let rotY = -angle + Math.PI / 2;
         let scaleVal = item.scale;
+
         if (item.type === 'engine') {
           rotY += engineRotYOffset;
-          posX += (perpX * engineLateralOffset) + (dirX * engineForwardOffset);
-          posZ += (perpZ * engineLateralOffset) + (dirZ * engineForwardOffset);
+          // Sirf engine ko sideways (right/left) shift karta hai — wagons is se untouched hain
+          posX += perpX * engineRightShift;
+          posZ += perpZ * engineRightShift;
+          // Sirf engine ko aage/peeche karta hai (wagons se attach karne ke liye)
+          posX += dirX * engineForwardOffset;
+          posZ += dirZ * engineForwardOffset;
+          // DIRECT world-axis shift — track angle ignore karke seedha X/Z axis par move karta hai
+          posX += engineWorldXShift;
+          posZ += engineWorldZShift;
+          // AUTO GROUND SNAP: engine ka model-base (bounding box ka sabse neeche wala point) ko
+          // engineYOffset height par rakhta hai — chahe model ka internal pivot kahin bhi ho, ye
+          // hamesha ground ko sahi se touch karega.
+          posY = engineYOffset - engineBoxMinY * scaleVal;
         }
 
         const model = item.type === 'engine' ? engineScene : wagonScene;
@@ -2644,7 +2829,7 @@ const WagonRake3D = ({
           <Clone
             key={index}
             object={model}
-            position={[posX, 0.4, posZ]}
+            position={[posX, posY, posZ]}
             rotation={[0, rotY, 0]}
             scale={[scaleVal, scaleVal, scaleVal]}
             castShadow
@@ -2799,7 +2984,41 @@ function App() {
       }
       result.push({ ...container, x, y, z, angle, is40 });
     });
-    return result;
+
+    // === EMPTY-SLOT GRAY FILL ===
+    // Har physical column (ek fixed x,z jagah jahan containers stack hote hain) ke liye check karo:
+    // agar us column mein koi upar wala stack level occupied hai lekin uske neeche ke levels khali
+    // hain, to unn khali levels par ek gray "empty" placeholder container daal do.
+    const columnMap = new Map();
+    const HEIGHT = 2.6;
+    result.forEach((c) => {
+      const key = `${c.x.toFixed(2)}_${c.z.toFixed(2)}`;
+      if (!columnMap.has(key)) columnMap.set(key, { stacks: new Map(), is40: c.is40, angle: c.angle, x: c.x, z: c.z });
+      columnMap.get(key).stacks.set(c.stack, true);
+    });
+
+    const placeholders = [];
+    columnMap.forEach((col) => {
+      const levels = Array.from(col.stacks.keys());
+      const maxStack = Math.max(...levels);
+      for (let lvl = 1; lvl < maxStack; lvl++) {
+        if (!col.stacks.has(lvl)) {
+          const y = (lvl - 1) * HEIGHT + HEIGHT / 2 + 0.1;
+          placeholders.push({
+            id: `EMPTY-${col.x.toFixed(1)}-${col.z.toFixed(1)}-${lvl}`,
+            isEmpty: true,
+            x: col.x,
+            y,
+            z: col.z,
+            angle: col.angle,
+            is40: col.is40,
+            stack: lvl,
+          });
+        }
+      }
+    });
+
+    return [...result, ...placeholders];
   }, [slots, containers, center]);
 
   if (loading) {
@@ -2808,6 +3027,12 @@ function App() {
 
   const targetLat = 28.51402777568197; // from your code
   const targetLng = 77.286057243871;
+
+
+
+  // Second train — new engine + 10 wagons at your given coordinate
+  const targetLat2 = 28.509669;
+  const targetLng2 = 77.286292;
 
   return (
     <div className={`app-container ${isDark ? "theme-dark" : "theme-light"}`}>
@@ -2840,11 +3065,27 @@ function App() {
               ×
             </button>
             <div className="card-header" style={{ fontSize: "12px", opacity: 0.7, paddingRight: "20px" }}>
-              {selectedItem.size ? "Container Details" : "Selected Yard Slot"}
+              {selectedItem.isEmpty ? "Empty Slot" : selectedItem.size ? "Container Details" : "Selected Yard Slot"}
             </div>
-            <h3 style={{ margin: "5px 0 12px 0", paddingRight: "20px" }}>{selectedItem.id || selectedItem.originalData?.CONTAINER_NO || selectedItem._rawKey}</h3>
+            <h3 style={{ margin: "5px 0 12px 0", paddingRight: "20px" }}>
+              {selectedItem.isEmpty ? "Empty" : (selectedItem.id || selectedItem.originalData?.CONTAINER_NO || selectedItem._rawKey)}
+            </h3>
             <div style={{ fontSize: "14px" }}>
-              {selectedItem.size ? (
+              {selectedItem.isEmpty ? (
+                [
+                  ["Status", "Empty — No Container"],
+                  ["Size Slot", selectedItem.is40 ? "40 FT" : "20 FT"],
+                  ["Stack Level", selectedItem.stack],
+                ].map(([label, value], i, arr) => (
+                  <div key={label} className="card-detail" style={{ padding: "8px 0", borderBottom: i < arr.length - 1 ? `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}` : "none" }}>
+                    <span>{label}</span>
+                    <strong style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      {i === 0 && <span style={{ width: "10px", height: "10px", borderRadius: "50%", background: EMPTY_SLOT_COLOR, display: "inline-block" }} />}
+                      {value || "—"}
+                    </strong>
+                  </div>
+                ))
+              ) : selectedItem.size ? (
                 [
                   ["Size", `${selectedItem.originalData?.CONTAINER_SIZE || selectedItem.size} FT`],
                   ["Location", selectedItem._rawKey || selectedItem.loc],
@@ -2869,20 +3110,6 @@ function App() {
             </div>
           </div>
         )}
-
-        <div className="ui-legend" style={{ background: isDark ? "rgba(30,41,59,0.95)" : "rgba(255,255,255,0.95)", padding: "20px", borderRadius: "12px", position: "absolute", left: "24px", bottom: "24px", maxHeight: "70vh", overflowY: "auto", maxWidth: "280px" }}>
-          <h4 style={{ margin: "0 0 16px 0", fontSize: "0.85rem", textTransform: "uppercase", letterSpacing: "1px", color: isDark ? "#94a3b8" : "#6b7280" }}>Map Legend</h4>
-          <div className="legend-row" style={{ display: "flex", alignItems: "center", marginBottom: "12px", fontSize: "0.9rem", fontWeight: "600" }}><div style={{ width: "12px", height: "12px", background: "#FACC15", border: "2px solid #111827", marginRight: "10px", borderRadius: "2px" }}></div><span>Parking Wall</span></div>
-          <div className="legend-row" style={{ display: "flex", alignItems: "center", marginBottom: "12px", fontSize: "0.9rem", fontWeight: "600" }}><div style={{ width: "12px", height: "12px", background: "#38BDF8", marginRight: "10px", borderRadius: "2px" }}></div><span>Head Office</span></div>
-          <div className="legend-row" style={{ display: "flex", alignItems: "center", marginBottom: "12px", fontSize: "0.9rem", fontWeight: "600" }}><div style={{ width: "12px", height: "12px", background: "#065F46", marginRight: "10px", borderRadius: "2px" }}></div><span>Terminal Gates</span></div>
-          <div className="legend-row" style={{ display: "flex", alignItems: "center", marginBottom: "12px", fontSize: "0.9rem", fontWeight: "600" }}><div style={{ width: "12px", height: "12px", background: "#1C7FA0", marginRight: "10px", borderRadius: "2px" }}></div><span>Side Boundary Gate</span></div>
-          <div className="legend-row" style={{ display: "flex", alignItems: "center", marginBottom: "12px", fontSize: "0.9rem", fontWeight: "600" }}><div style={{ width: "12px", height: "12px", background: "#E6C280", marginRight: "10px", borderRadius: "2px" }}></div><span>Boundary Wall</span></div>
-          <div className="legend-row" style={{ display: "flex", alignItems: "center", marginBottom: "12px", fontSize: "0.9rem", fontWeight: "600" }}><div style={{ width: "12px", height: "12px", background: isDark ? "#94A3B8" : "#D1D5DB", border: "1px solid #94A3B8", marginRight: "10px", borderRadius: "2px" }}></div><span>Warehouse</span></div>
-          <div className="legend-row" style={{ display: "flex", alignItems: "center", marginBottom: "12px", fontSize: "0.9rem", fontWeight: "600" }}><div style={{ width: "12px", height: "12px", background: "#71717A", border: "2px dashed #FACC15", marginRight: "10px", borderRadius: "2px" }}></div><span>Light Parking</span></div>
-          <div className="legend-row" style={{ display: "flex", alignItems: "center", marginBottom: "12px", fontSize: "0.9rem", fontWeight: "600" }}><div style={{ width: "12px", height: "12px", background: "#EA580C", marginRight: "10px", borderRadius: "2px" }}></div><span>RST Stacker</span></div>
-          <div className="legend-row" style={{ display: "flex", alignItems: "center", fontSize: "0.9rem", fontWeight: "600" }}><div style={{ width: "12px", height: "12px", background: "#FACC15", marginRight: "10px", borderRadius: "2px" }}></div><span>Crane</span></div>
-          <div className="legend-row" style={{ display: "flex", alignItems: "center", marginTop: "12px", fontSize: "0.9rem", fontWeight: "600" }}><div style={{ width: "12px", height: "12px", background: "#EF4444", marginRight: "10px", borderRadius: "2px" }}></div><span>Boom Barrier</span></div>
-        </div>
       </div>
 
       <Canvas camera={{ position: [274, 1280, 80], fov: 45, near: 1, far: 10000 }} gl={{ logarithmicDepthBuffer: true }} shadows>
@@ -2931,6 +3158,8 @@ function App() {
         <WorkshopShed3D polygon={WORKSHOP1_POLYGON} center={center} isDark={isDark} label="WORKSHOP 1" />
         <WorkshopShed3D polygon={WORKSHOP2_POLYGON} center={center} isDark={isDark} label="WORKSHOP 2" />
 
+        <GardenBed3D center={center} isDark={isDark} />
+
         <MergedSlots slots={slots} center={center} isDark={isDark} onClick={setSelectedItem} />
         <InstancedContainers containers={placedContainers} isDark={isDark} onClick={setSelectedItem} />
 
@@ -2960,8 +3189,41 @@ function App() {
             spacing={16}
             engineScale={2} // Agar engine ka size wagon jitna karna hai
             engineRotYOffset={Math.PI / 2} // Engine ko 90 degree rotate karne ke liye (agar tedha chal raha hai to ise change karein -Math.PI / 2 try karein)
-            engineLateralOffset={-2} // Engine ko left ya right track par adjust karne ke liye
-            engineForwardOffset={-8}
+            engineForwardOffset={-6}
+            /* engineYOffset ab default 0.4 hai — auto ground-snap ki wajah se engine khud
+               track ki sahi height pe baith jayega, manual guess-check ki zaroorat nahi. */
+          />
+        </Suspense>
+
+
+        {/* TRAIN 2 — engine (train2.glb) + 10 wagons at 28.509669, 77.286292 */}
+        <Suspense fallback={null}>
+          <WagonRake3D
+            center={center}
+            targetLat={targetLat2}
+            targetLng={targetLng2}
+            trackOffset={-4}
+            count={10}
+            withEngine={false}
+            wagonScale={0.12}
+            spacing={16}
+            engineScale={3}
+            engineRotYOffset={Math.PI / 2}
+            engineForwardOffset={-16}
+            /* engineYOffset ab default 0.4 hai — auto ground-snap ki wajah se engine khud
+               track ki sahi height pe baith jayega, manual guess-check ki zaroorat nahi. */
+            /* === SIRF ENGINE KO LEFT/RIGHT SHIFT KARNE WALI LINES ===
+               Do tareeke diye hain — jo bhi kaam kare wahi use karo, doosre ko 0 rakho.
+
+               TAREEKA 1 (track-relative, agar track seedha ho to ye sahi "right" hoga):
+               engineRightShift={10}   // negative karne se doosri taraf jayega
+
+               TAREEKA 2 (DIRECT world-axis, track angle ignore karta hai — agar tareeka 1
+               confusing lage to isse try karo, aur value 5/10/20/-10 karke dekho):
+            */
+            engineRightShift={0}
+            engineWorldXShift={-12}
+            engineWorldZShift={0}
           />
         </Suspense>
 
