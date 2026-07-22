@@ -113,6 +113,32 @@ const GARDEN_PATH_COORDS = [
   [28.509215859948863, 77.28774135856749],
 ];
 
+// === CGO gantry lane + boom barrier (updated location per user request) ===
+const CGO_GATE_LANES = [
+  [
+    [28.50940229319682, 77.2867655093163],
+    [28.509342779912718, 77.28676685042069]
+  ]
+];
+const CGO_BOOM_BARRIER_COORDS = [
+  {
+    lat: 28.509404060917614,
+    lng: 77.28675276882439,
+    face:"right"
+  }
+];
+
+// === CGI gantry lane + boom barrier (updated location per user request).  , 
+const CGI_GATE_LANES = [
+  [
+    [28.513650379062337, 77.28631105831475], 
+    [ 28.513588260301656,  77.28635497405854]
+  ]
+];
+const CGI_BOOM_BARRIER_COORDS = [
+  { lat: 28.513583554333458, lng:  77.2863367650916, face: "left" }
+];
+
 
 
 
@@ -213,6 +239,28 @@ function createRedWhiteStripeTexture() {
   return texture;
 }
 
+// Orange/black diagonal hazard stripe — used for the CGO/CGI gantry poles.
+function createOrangeBlackStripeTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 128; canvas.height = 512;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#F97316"; ctx.fillRect(0, 0, 128, 512);
+  ctx.fillStyle = "#111827";
+  for (let i = -128; i < 1024; i += 64) {
+    ctx.beginPath();
+    ctx.moveTo(0, i);
+    ctx.lineTo(128, i + 32);
+    ctx.lineTo(128, i + 64);
+    ctx.lineTo(0, i + 32);
+    ctx.closePath();
+    ctx.fill();
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping; texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(1, 3);
+  return texture;
+}
+
 function isPointInPolygon(point, vs) {
   let x = point[0], z = point[1];
   let inside = false;
@@ -296,7 +344,7 @@ const InstancedStatic = ({ geometry, material, matrices, castShadow = false, rec
 
 const PAN_BOUNDS_CENTER_X = -120;
 const PAN_BOUNDS_CENTER_Z = 150;
-const PAN_BOUNDS_RADIUS = 400;
+const PAN_BOUNDS_RADIUS = 900;
 
 const PanBoundsClamp = ({ controlsRef }) => {
   useFrame(() => {
@@ -323,7 +371,7 @@ const bbPivotGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.6, 16);
 const bbArmGeo = new THREE.BoxGeometry(4.0, 0.15, 0.05);
 const bbLedGeo = new THREE.BoxGeometry(0.2, 0.05, 0.2);
 
-const BoomBarrier3D = ({ center, isDark }) => {
+const BoomBarrier3D = ({ center, isDark, coords = BOOM_BARRIER_COORDS, label = "Access Control Boom Barrier" }) => {
   const [hovered, setHovered] = useState(false);
   const stripeTexture = useMemo(() => createRedWhiteStripeTexture(), []);
 
@@ -332,7 +380,7 @@ const BoomBarrier3D = ({ center, isDark }) => {
     const cab = [], piv = [], arm = [], led = [];
     let minX = Infinity, minZ = Infinity, maxX = -Infinity, maxZ = -Infinity;
 
-    BOOM_BARRIER_COORDS.forEach((coord) => {
+    coords.forEach((coord) => {
       const x = (coord.lng - center.lng) * LAT_TO_METERS * lngScale;
       const z = -(coord.lat - center.lat) * LAT_TO_METERS;
       minX = Math.min(minX, x); maxX = Math.max(maxX, x);
@@ -350,7 +398,7 @@ const BoomBarrier3D = ({ center, isDark }) => {
     const cz = (minZ + maxZ) / 2 || 0;
 
     return { cabinetM: cab, pivotM: piv, armM: arm, ledM: led, bounds: { cx, cz } };
-  }, [center]);
+  }, [center, coords]);
 
   const cabMat = useMemo(() => new THREE.MeshStandardMaterial({ color: "#F97316", roughness: 0.4, metalness: 0.2 }), []);
   const pivMat = useMemo(() => new THREE.MeshStandardMaterial({ color: "#374151", roughness: 0.6, metalness: 0.8 }), []);
@@ -370,7 +418,7 @@ const BoomBarrier3D = ({ center, isDark }) => {
       {hovered && (
         <Html position={[bounds.cx, 4, bounds.cz]} center style={{ pointerEvents: "none", zIndex: 100 }}>
           <div className={`tooltip-3d ${isDark ? "dark" : "light"}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: "bold", fontSize: "14px", background: "#EF4444", color: "#fff", border: "2px solid #fff", padding: "8px 14px", borderRadius: "6px", boxShadow: "0 6px 10px rgba(0,0,0,0.4)" }}>
-            <span>🚧</span> Access Control Boom Barrier
+            <span>🚧</span> {label}
           </div>
         </Html>
       )}
@@ -384,14 +432,14 @@ const orangeCabinetGeo = new THREE.BoxGeometry(0.6, 1.2, 0.6);
 const cameraBoxGeo = new THREE.BoxGeometry(0.15, 0.15, 0.3);
 const greenLightBoxGeo = new THREE.BoxGeometry(0.4, 0.4, 0.05);
 
-const AutomationGate3D = ({ center, isDark }) => {
+const AutomationGate3D = ({ center, isDark, lanes = AUTO_GATE_LANES, label = "Automation Lane Gantry", stripedPoles = false }) => {
   const [hovered, setHovered] = useState(false);
 
   const { poleM, beamM, cabinetM, cameraM, lightM } = useMemo(() => {
     const lngScale = Math.cos((center.lat * Math.PI) / 180);
     const poles = [], beams = [], cabinets = [], cameras = [], lights = [];
 
-    AUTO_GATE_LANES.forEach((lane) => {
+    lanes.forEach((lane) => {
       const p1 = {
         x: (lane[0][1] - center.lng) * LAT_TO_METERS * lngScale,
         z: -(lane[0][0] - center.lat) * LAT_TO_METERS,
@@ -425,9 +473,14 @@ const AutomationGate3D = ({ center, isDark }) => {
     });
 
     return { poleM: poles, beamM: beams, cabinetM: cabinets, cameraM: cameras, lightM: lights };
-  }, [center]);
+  }, [center, lanes]);
 
-  const gantryMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: isDark ? "#4B5563" : "#9CA3AF", roughness: 0.6, metalness: 0.4 }), [isDark]);
+  const stripeTexture = useMemo(() => (stripedPoles ? createOrangeBlackStripeTexture() : null), [stripedPoles]);
+  const gantryMaterial = useMemo(() => (
+    stripedPoles
+      ? new THREE.MeshStandardMaterial({ map: stripeTexture, roughness: 0.6, metalness: 0.3 })
+      : new THREE.MeshStandardMaterial({ color: isDark ? "#4B5563" : "#9CA3AF", roughness: 0.6, metalness: 0.4 })
+  ), [isDark, stripedPoles, stripeTexture]);
   const cabinetMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: "#EA580C", roughness: 0.5 }), []);
   const cameraMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: isDark ? "#1F2937" : "#E5E7EB", roughness: 0.3 }), [isDark]);
   const greenLightMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: "#22C55E", emissive: "#22C55E", emissiveIntensity: 2.5 }), []);
@@ -444,9 +497,9 @@ const AutomationGate3D = ({ center, isDark }) => {
       <InstancedStatic geometry={greenLightBoxGeo} material={greenLightMaterial} matrices={lightM} />
 
       {hovered && (
-        <Html position={[poleM[0].elements[12] || 0, 6, poleM[0].elements[14] || 0]} center style={{ pointerEvents: "none" }}>
+        <Html position={[poleM[0]?.elements[12] || 0, 6, poleM[0]?.elements[14] || 0]} center style={{ pointerEvents: "none" }}>
           <div className={`tooltip-3d ${isDark ? "dark" : "light"}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: "bold", fontSize: "14px", background: "#EA580C", color: "#fff", border: "2px solid #fff", padding: "8px 14px", borderRadius: "6px", boxShadow: "0 6px 10px rgba(0,0,0,0.4)" }}>
-            <span>📹</span> Automation Lane Gantry
+            <span>📹</span> {label}
           </div>
         </Html>
       )}
@@ -3131,6 +3184,14 @@ function App() {
 
         {/* === AUTOMATION GATE === */}
         <AutomationGate3D center={center} isDark={isDark} />
+
+        {/* === CGO GANTRY + BOOM BARRIER (added at user request) === */}
+        <AutomationGate3D center={center} isDark={isDark} lanes={CGO_GATE_LANES} label="CGO Gate" stripedPoles />
+        <BoomBarrier3D center={center} isDark={isDark} coords={CGO_BOOM_BARRIER_COORDS} label="CGO Boom Barrier" />
+
+        {/* === CGI GANTRY + BOOM BARRIER (added at user request) === */}
+        <AutomationGate3D center={center} isDark={isDark} lanes={CGI_GATE_LANES} label="CGI Gate" stripedPoles />
+        <BoomBarrier3D center={center} isDark={isDark} coords={CGI_BOOM_BARRIER_COORDS} label="CGI Boom Barrier" />
 
         {/* === NEW REALISTIC QR CODE SCANNERS === */}
         <QRCodeScanner3D center={center} isDark={isDark} />
