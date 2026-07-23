@@ -42,7 +42,7 @@ const BOUNDARY_WALL_COORDS = [
 ];
 const INGATE_POLYGON = [[28.508862180540508, 77.2887146535867], [28.508862180540508, 77.28884621675807], [28.508489551776456, 77.28886578813892], [28.508504839136275, 77.28873313766863]];
 const OUTGATE_POLYGON = [[28.507732029353566, 77.2888193076692], [28.507533460460987, 77.28906833200674], [28.507458085232486, 77.28903697338644], [28.50768988415047, 77.28876396892754]];
-const PARKING_COORDS = [[28.508913326434662, 77.28874674032724], [28.509292656765698, 77.28875681637923], [28.509269676368607, 77.28798769296093], [28.508928505264922, 77.28800848008274], [28.508698700275726, 77.28802926720272], [28.50872698399292, 77.28818751752696], [28.50880240720342, 77.28841215252098], [28.50884247576206, 77.28858984885952]];
+const PARKING_COORDS = [[28.508913326434662, 77.28874674032724], [28.509292656765698, 77.28875681637923], [28.509269676368607, 77.28798769296093], [28.508928505264922, 77.28800848008274], [28.50872698399292, 77.28802926720272], [28.50872698399292, 77.28818751752696], [28.50880240720342, 77.28841215252098], [28.50884247576206, 77.28858984885952]];
 
 const GREENERY_COORDS = [
   [28.50845790390383, 77.28776841227777], [28.50845246317079, 77.28711093642693], [28.508468912519486, 77.28678841362725], [28.508432379293147, 77.28678573141838], [28.508873091198694, 77.28774949751877], [28.508745814583012, 77.28775620304648], [28.50868689017281, 77.28775754415094], [28.50913471486485, 77.28773474537542], [28.509178318746454, 77.28772669874877], [28.509104074288622, 77.28773340427098], [28.509257277080785, 77.28786349140184], [28.507810249414163, 77.2868081762356], [28.507707720008348, 77.28681219954821], [28.507365339995083, 77.28682358116212], [28.507355987855256, 77.28682022830765], [28.50896276885772, 77.28954984856144], [28.509007590876884, 77.28953760687853], [28.50914743545424, 77.28953046589682], [28.509148331893247, 77.28944579425661], [28.50904882711768, 77.28945293523832], [28.508963665298303, 77.28946823734196]
@@ -104,11 +104,13 @@ const HEAD_OFFICE_POLYGON = [
   [28.50921721347462, 77.2876475691699], [28.509125822340106, 77.28766336700072], [28.509129292890968, 77.28761334053647], [28.509039058531517, 77.28761860648007], [28.509036744828975, 77.28754751624142], [28.508996255026346, 77.2875448832696], [28.508995098174594, 77.28756989650174], [28.508910647963845, 77.28757252947354], [28.508902549994893, 77.28748432491817], [28.50884470734014, 77.28748300843061], [28.508676963465497, 77.28731844769297], [28.508670022332243, 77.28724209150724], [28.50859714042292, 77.28723945853544], [28.508587885573693, 77.28714467155055], [28.508600610991166, 77.28709727805813], [28.508543925028732, 77.28709332860042], [28.508541611315344, 77.28699854161553], [28.50849070960772, 77.28699590864375], [28.508488395893163, 77.28689453922934], [28.50902401946127, 77.28687215896902], [28.509030960569564, 77.28697616135523], [28.508850491605273, 77.28698406027061], [28.50885743272499, 77.28722497719053], [28.508907177402953, 77.28726973771117], [28.509207958676942, 77.28725788933805],
 ];
 
+// Points reordered to walk around the rectangle perimeter (west edge, then east edge)
+// instead of zig-zagging corner-to-corner, which was crossing the shape into a bowtie.
 const GARDEN_PATH_COORDS = [
-  [28.508629238165717, 77.28775429210175],
-  [28.508625741155715, 77.28778214894476],
-  [28.509214111453613, 77.28771051706273],
-  [28.509215859948863, 77.28774135856749],
+  [28.508629238165717, 77.28775429210175], // south-west
+  [28.509214111453613, 77.28771051706273], // north-west
+  [28.509215859948863, 77.28774135856749], // north-east
+  [28.508625741155715, 77.28778214894476], // south-east
 ];
 
 const DOMESTIC_FENCE_COORDS = [
@@ -118,6 +120,35 @@ const DOMESTIC_FENCE_COORDS = [
   [28.51357455, 77.28674464],
   [28.51356438, 77.28636305],
   [28.51343122, 77.28636901],
+];
+
+// New small yellow-black wall markers, connected as one straight-through polyline
+// in the exact order given.
+const SMALL_WALL_COORDS = [
+  [28.507433282004676, 77.28899181219803],
+  [28.506913285650974, 77.28829882331989],
+  [28.50718415859611, 77.2881368259198],
+];
+
+// Second batch: three separate small yellow-black walls, each made from its own
+// 3-point group (point1 -> point2 -> point3). The three groups are NOT connected
+// to each other — each is its own independent little wall.
+const SMALL_WALL_LINES_2 = [
+  [
+    [28.50803723877893, 77.28952979922991],
+    [28.508004849255023, 77.28944379578691],
+    [28.50796646165828, 77.2893236639935],
+  ],
+  [
+    [28.50798925429552, 77.289537990034],
+    [28.507960463595012, 77.28944243065288],
+    [28.507924475208345, 77.28933458506563],
+  ],
+  [
+    [28.50791367868994, 77.28951751302378],
+    [28.507889686422867, 77.2894601773951],
+    [28.507866893764103, 77.28937826935413],
+  ],
 ];
 
 const CGO_GATE_LANES = [
@@ -138,6 +169,32 @@ const CGI_GATE_LANES = [
 ];
 const CGI_BOOM_BARRIER_COORDS = [
   { lat: 28.51363246593446, lng: 77.28635825754232, face: "right" }
+];
+
+// OCR gate: pole-gantry (like AutomationGate3D) walking through 3 given points as
+// 2 back-to-back lane segments (point1->point2, then point2->point3), same pole
+// style repeated for both segments.
+const OCR_GATE_LANES = [
+  [
+    [28.50799885119397, 77.28941785824061],
+    [28.507960463595012, 77.28944243065288],
+  ],
+  [
+    [28.507960463595012, 77.28944243065288],
+    [28.507889686422867, 77.2894601773951],
+  ],
+];
+
+// Two boom barriers (one right-facing, one left-facing) placed a little ahead of
+// the last point of SMALL_WALL_LINES_2's second wall ([28.507924475208345, 77.28933458506563]),
+// continuing in the same direction that wall was heading.
+const OCR_BOOM_LANE = [
+  [28.50796646165828, 77.2893236639935],
+  [28.507924475208345, 77.28933458506563],
+];
+const OCR_BOOM_BARRIER_COORDS = [
+  { lat: 28.507924475208345, lng: 77.28933458506563, face: "left" },
+  { lat: 28.50787376941233,  lng:  77.28937769306339, face: "left" },
 ];
 
 
@@ -339,7 +396,7 @@ const InstancedStatic = ({ geometry, material, matrices, castShadow = false, rec
     mesh.computeBoundingSphere();
   }, [matrices]);
   if (!matrices.length) return null;
-  return <instancedMesh ref={meshRef} args={[geometry, material, matrices.length]} castShadow={castShadow} receiveShadow={receiveShadow} />;
+  return <instancedMesh ref={meshRef} args={[geometry, undefined, matrices.length]} material={material} castShadow={castShadow} receiveShadow={receiveShadow} />;
 };
 
 const PAN_BOUNDS_CENTER_X = -120;
@@ -439,7 +496,7 @@ const orangeCabinetGeo = new THREE.BoxGeometry(0.6, 1.2, 0.6);
 const cameraBoxGeo = new THREE.BoxGeometry(0.15, 0.15, 0.3);
 const greenLightBoxGeo = new THREE.BoxGeometry(0.4, 0.4, 0.05);
 
-const AutomationGate3D = ({ center, isDark, lanes = AUTO_GATE_LANES, label = "Automation Lane Gantry", stripedPoles = false }) => {
+const AutomationGate3D = ({ center, isDark, lanes = AUTO_GATE_LANES, label = "Automation Lane Gantry", stripedPoles = false, poleColor = null }) => {
   const [hovered, setHovered] = useState(false);
 
   const { poleM, beamM, cabinetM, cameraM, lightM } = useMemo(() => {
@@ -484,10 +541,12 @@ const AutomationGate3D = ({ center, isDark, lanes = AUTO_GATE_LANES, label = "Au
 
   const stripeTexture = useMemo(() => (stripedPoles ? createOrangeBlackStripeTexture() : null), [stripedPoles]);
   const gantryMaterial = useMemo(() => (
-    stripedPoles
-      ? new THREE.MeshStandardMaterial({ map: stripeTexture, roughness: 0.6, metalness: 0.3 })
-      : new THREE.MeshStandardMaterial({ color: isDark ? "#4B5563" : "#9CA3AF", roughness: 0.6, metalness: 0.4 })
-  ), [isDark, stripedPoles, stripeTexture]);
+    poleColor
+      ? new THREE.MeshStandardMaterial({ color: poleColor, roughness: 0.6, metalness: 0.4 })
+      : stripedPoles
+        ? new THREE.MeshStandardMaterial({ map: stripeTexture, roughness: 0.6, metalness: 0.3 })
+        : new THREE.MeshStandardMaterial({ color: isDark ? "#4B5563" : "#f47349", roughness: 0.6, metalness: 0.4 })
+  ), [isDark, stripedPoles, stripeTexture, poleColor]);
   const cabinetMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: "#EA580C", roughness: 0.5 }), []);
   const cameraMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: isDark ? "#1F2937" : "#E5E7EB", roughness: 0.3 }), [isDark]);
   const greenLightMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: "#22C55E", emissive: "#22C55E", emissiveIntensity: 2.5 }), []);
@@ -1202,6 +1261,94 @@ const ParkingWall3D = ({ center, isDark }) => {
   );
 };
 
+// Small yellow-black boundary wall built from SMALL_WALL_COORDS — same visual style
+// (geometries + warning-stripe texture) as ParkingWall3D, connecting the given points
+// as one continuous straight-through polyline (point 1 -> 2 -> 3 -> ... in order,
+// no reordering/pairing), so it matches exactly what was asked for.
+const SmallYellowBlackWall3D = ({ center, isDark, lines = [SMALL_WALL_COORDS] }) => {
+  const [hovered, setHovered] = useState(false);
+  const stripeTexture = useMemo(() => createWarningStripeTexture(), []);
+  const wallMaterial = useMemo(() => new THREE.MeshStandardMaterial({ map: stripeTexture, roughness: 0.8, metalness: 0.1 }), [stripeTexture]);
+  const postMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: "#4B5563", roughness: 0.7, metalness: 0.3 }), []);
+  const baseMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: isDark ? "#374151" : "#9CA3AF", roughness: 0.9 }), [isDark]);
+
+  const { wallMatrices, postMatrices, baseMatrices, bounds } = useMemo(() => {
+    const lngScale = Math.cos((center.lat * Math.PI) / 180);
+    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+
+    const wallM = [];
+    const postM = [];
+    const baseM = [];
+
+    lines.forEach((line) => {
+      if (line.length < 2) return;
+
+      const pts = line.map((c) => ({
+        x: (c[1] - center.lng) * LAT_TO_METERS * lngScale,
+        z: -(c[0] - center.lat) * LAT_TO_METERS,
+      }));
+
+      pts.forEach((p) => {
+        if (p.x < minX) minX = p.x;
+        if (p.x > maxX) maxX = p.x;
+        if (p.z < minZ) minZ = p.z;
+        if (p.z > maxZ) maxZ = p.z;
+      });
+
+      // Walk straight through every consecutive pair of points, in the exact order
+      // given — no smoothing/simplification, no reordering/pairing of points.
+      for (let i = 0; i < pts.length - 1; i++) {
+        const p1 = pts[i];
+        const p2 = pts[i + 1];
+
+        const dx = p2.x - p1.x;
+        const dz = p2.z - p1.z;
+        const dist = Math.hypot(dx, dz);
+        if (dist < 0.01) continue;
+
+        const angle = Math.atan2(dz, dx);
+        const MAX_SEG_LEN = 2.0;
+        const numBlocks = Math.ceil(dist / MAX_SEG_LEN);
+        const blockLen = dist / numBlocks;
+
+        for (let b = 0; b < numBlocks; b++) {
+          const cx = p1.x + (dx / dist) * (b + 0.5) * blockLen;
+          const cz = p1.z + (dz / dist) * (b + 0.5) * blockLen;
+
+          wallM.push(composeWorldMatrix([cx, 0.4, cz], -angle, [0, 0, 0], [blockLen, 1, 1]));
+          baseM.push(composeWorldMatrix([cx, 0.08, cz], -angle, [0, 0, 0], [blockLen, 1, 1]));
+        }
+
+        postM.push(composeWorldMatrix([p1.x, 0.6, p1.z], 0, [0, 0, 0], [1, 1, 1]));
+        if (i === pts.length - 2) {
+          postM.push(composeWorldMatrix([p2.x, 0.6, p2.z], 0, [0, 0, 0], [1, 1, 1]));
+        }
+      }
+    });
+
+    return { wallMatrices: wallM, postMatrices: postM, baseMatrices: baseM, bounds: { minX, maxX, minZ, maxZ } };
+  }, [center, lines]);
+
+  return (
+    <group
+      onPointerOver={(e) => { e.stopPropagation(); setHovered(true); document.body.style.cursor = "pointer"; }}
+      onPointerOut={(e) => { e.stopPropagation(); setHovered(false); document.body.style.cursor = "auto"; }}
+    >
+      <InstancedStatic geometry={smallWallSkinGeo} material={wallMaterial} matrices={wallMatrices} castShadow receiveShadow />
+      <InstancedStatic geometry={smallWallBaseGeo} material={baseMaterial} matrices={baseMatrices} castShadow receiveShadow />
+      <InstancedStatic geometry={smallWallPostGeo} material={postMaterial} matrices={postMatrices} castShadow receiveShadow />
+
+      {hovered && (
+        <Html position={[bounds.minX + (bounds.maxX - bounds.minX) / 2, 3, bounds.minZ + (bounds.maxZ - bounds.minZ) / 2]} center style={{ pointerEvents: "none" }}>
+          <div className={`tooltip-3d ${isDark ? "dark" : "light"}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: "bold", fontSize: "14px", background: "#FACC15", color: "#111827", border: "2px solid #111827", padding: "8px 14px", borderRadius: "6px", boxShadow: "0 6px 10px rgba(0,0,0,0.4)" }}>
+            <span>🚧</span> Boundary Wall Marking
+          </div>
+        </Html>
+      )}
+    </group>
+  );
+};
+
 const parkingStripeGeo = new THREE.BoxGeometry(0.1, 0.02, 5);
 const parkingCrossGeo = new THREE.BoxGeometry(2.6, 0.02, 0.1);
 const parkingBarrierGeo = new THREE.BoxGeometry(1.7, 1, 0.6);
@@ -1352,6 +1499,12 @@ const NEW_GATE_P1 = BOUNDARY_WALL_COORDS[1];
 const NEW_GATE_P2 = BOUNDARY_WALL_COORDS[2];
 const SIDE_GATE_SEGMENT_INDEX = 1;
 
+// Only a small 2-leaf gate (3 pillars: start, middle divider, end) sits in the middle
+// of this wall segment now — the rest of the segment is solid wall on both sides.
+const SIDE_GATE_LEAF_WIDTH = 2.6;
+const SIDE_GATE_NUM_LEAVES = 2;
+const SIDE_GATE_TOTAL_WIDTH = SIDE_GATE_LEAF_WIDTH * SIDE_GATE_NUM_LEAVES;
+
 const sideGatePillarGeo = new THREE.BoxGeometry(0.42, 2.9, 0.42);
 const sideGatePillarCapGeo = new THREE.BoxGeometry(0.6, 0.18, 0.6);
 const sideGatePillarCapTopGeo = new THREE.ConeGeometry(0.42, 0.35, 4);
@@ -1382,16 +1535,18 @@ const SideGate3D = ({ center, isDark }) => {
       z: -(NEW_GATE_P2[0] - center.lat) * LAT_TO_METERS,
     };
     const dx = p2.x - p1.x, dz = p2.z - p1.z;
-    const len = Math.hypot(dx, dz);
     const ang = Math.atan2(dz, dx);
-    const targetLeafWidth = 2.6;
-    const numL = Math.max(2, Math.round(len / targetLeafWidth));
-    const actualLeafWidth = len / numL;
+    // Fixed small gate: exactly SIDE_GATE_NUM_LEAVES (2) leaves, centered on the wall
+    // segment's midpoint. This gives exactly 3 pillars (start, middle, end) and 2 leaves
+    // (one to the left of the middle pillar, one to the right) — the rest of the wall
+    // segment (handled in BoundaryWall3D) stays solid on both sides of this gate.
+    const numL = SIDE_GATE_NUM_LEAVES;
+    const actualLeafWidth = SIDE_GATE_LEAF_WIDTH;
     return {
       cx: (p1.x + p2.x) / 2,
       cz: (p1.z + p2.z) / 2,
       angle: ang,
-      length: len,
+      length: actualLeafWidth * numL,
       leafWidth: actualLeafWidth,
       numLeaves: numL,
       dividerIndex: Math.floor(numL / 2),
@@ -1493,7 +1648,31 @@ const BoundaryWall3D = ({ center, isDark }) => {
   const { foundationMatrices, skinMatrices, trimMatrices, pillarBodyMatrices, pillarCapMatrices } = useMemo(() => {
     const foundation = [], skin = [], trim = [], pillarBody = [], pillarCap = [];
     segments.forEach((seg) => {
-      if (!seg.isInGateGap && !seg.isOutGateGap && !seg.isSideGateGap) {
+      if (seg.isSideGateGap) {
+        // Keep this segment mostly solid — only leave a small gap in the middle
+        // (SIDE_GATE_TOTAL_WIDTH wide) for the 2-leaf gate that SideGate3D renders there.
+        const dirX = seg.len > 0 ? (seg.p2.x - seg.p1.x) / seg.len : 0;
+        const dirZ = seg.len > 0 ? (seg.p2.z - seg.p1.z) / seg.len : 0;
+        const gateHalf = SIDE_GATE_TOTAL_WIDTH / 2;
+        const gateStartX = seg.cx - dirX * gateHalf, gateStartZ = seg.cz - dirZ * gateHalf;
+        const gateEndX = seg.cx + dirX * gateHalf, gateEndZ = seg.cz + dirZ * gateHalf;
+        const beforeLen = Math.hypot(gateStartX - seg.p1.x, gateStartZ - seg.p1.z);
+        const afterLen = Math.hypot(seg.p2.x - gateEndX, seg.p2.z - gateEndZ);
+        const beforeCx = (seg.p1.x + gateStartX) / 2, beforeCz = (seg.p1.z + gateStartZ) / 2;
+        const afterCx = (gateEndX + seg.p2.x) / 2, afterCz = (gateEndZ + seg.p2.z) / 2;
+        const rotY = -seg.angle;
+
+        if (beforeLen > 0.05) {
+          foundation.push(composeWorldMatrix([beforeCx, 0, beforeCz], rotY, [0, 0.4, 0], [beforeLen, 1, 1]));
+          skin.push(composeWorldMatrix([beforeCx, 0, beforeCz], rotY, [0, 0.8 + (WALL_HEIGHT - 0.8) / 2, 0], [beforeLen, 1, 1]));
+          trim.push(composeWorldMatrix([beforeCx, 0, beforeCz], rotY, [0, WALL_HEIGHT + 0.1, 0], [beforeLen + 0.1, 1, 1]));
+        }
+        if (afterLen > 0.05) {
+          foundation.push(composeWorldMatrix([afterCx, 0, afterCz], rotY, [0, 0.4, 0], [afterLen, 1, 1]));
+          skin.push(composeWorldMatrix([afterCx, 0, afterCz], rotY, [0, 0.8 + (WALL_HEIGHT - 0.8) / 2, 0], [afterLen, 1, 1]));
+          trim.push(composeWorldMatrix([afterCx, 0, afterCz], rotY, [0, WALL_HEIGHT + 0.1, 0], [afterLen + 0.1, 1, 1]));
+        }
+      } else if (!seg.isInGateGap && !seg.isOutGateGap) {
         const parentPos = [seg.cx, 0, seg.cz];
         const rotY = -seg.angle;
         foundation.push(composeWorldMatrix(parentPos, rotY, [0, 0.4, 0], [seg.len, 1, 1]));
@@ -1690,9 +1869,9 @@ function createGreenLatticeTexture() {
 
 const meshGatePillarGeo = new THREE.BoxGeometry(0.36, 3.4, 0.36);
 const meshGatePillarCapGeo = new THREE.BoxGeometry(0.46, 0.14, 0.46);
-const meshGateBoomCabinetGeo = new THREE.BoxGeometry(0.55, 1.05, 0.45);
-const meshGateBoomArmGeo = new THREE.BoxGeometry(2.4, 0.13, 0.06);
-const meshGateBoomPivotGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.5, 12);
+const meshGateBoomCabinetGeo = new THREE.BoxGeometry(0.72, 1.37, 0.59);
+const meshGateBoomArmGeo = new THREE.BoxGeometry(3.1, 0.17, 0.08);
+const meshGateBoomPivotGeo = new THREE.CylinderGeometry(0.13, 0.13, 0.65, 12);
 
 const GATE_HEIGHT = 2.6;
 const PILLAR_HEIGHT = 3.8;
@@ -1768,7 +1947,10 @@ const TerminalMeshGate3D = ({ center, isDark, label = "Terminal Out-Gate" }) => 
       leaves.push(composeWorldMatrix(parentPos, rotY, [hingeX, 0, 0], [1, 1, 1], [0, isOpen ? GATE_OPEN_ANGLE : 0, 0]));
     }
 
-    const boomX = startX + OPEN_LEAF_COUNT * leafWidth;
+    // BOOM_RIGHT_SHIFT: shifts the out-gate boom barrier further right along the gate
+    // (increase/decrease this value to fine-tune the exact position).
+    const BOOM_RIGHT_SHIFT = 3.2;
+    const boomX = startX + OPEN_LEAF_COUNT * leafWidth + BOOM_RIGHT_SHIFT;
     const boom = composeWorldMatrix(parentPos, rotY, [boomX, 0, 1.4], [1, 1, 1]);
 
     return { pillarM: pillars, pillarCapM: pillarCaps, leafM: leaves, boomMatrix: boom };
@@ -1806,9 +1988,9 @@ const TerminalMeshGate3D = ({ center, isDark, label = "Terminal Out-Gate" }) => 
       <InstancedStatic geometry={leafMeshGeo} material={leafMeshMaterial} matrices={leafM} />
 
       <group matrix={boomMatrix} matrixAutoUpdate={false}>
-        <mesh geometry={meshGateBoomCabinetGeo} material={boomCabinetMaterial} position={[0, 0.55, 0]} castShadow receiveShadow />
-        <mesh geometry={meshGateBoomPivotGeo} material={boomPivotMaterial} position={[0, 1.0, 0.3]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow />
-        <mesh geometry={meshGateBoomArmGeo} material={boomArmMaterial} position={[1.2, 1.0, 0.3]} castShadow receiveShadow />
+        <mesh geometry={meshGateBoomCabinetGeo} material={boomCabinetMaterial} position={[0, 0.72, 0]} castShadow receiveShadow />
+        <mesh geometry={meshGateBoomPivotGeo} material={boomPivotMaterial} position={[0, 1.3, 0.4]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow />
+        <mesh geometry={meshGateBoomArmGeo} material={boomArmMaterial} position={[1.6, 1.3, 0.4]} castShadow receiveShadow />
       </group>
 
       {hovered && (
@@ -1910,6 +2092,10 @@ function getContainerVisual(color, isDark) {
 
 const _instMatrix = new THREE.Matrix4();
 const _instColor = new THREE.Color();
+// Reusable Object3D used to build per-instance matrices that include a non-uniform
+// scale (needed so 40ft containers can be stretched/shrunk to exactly fit their
+// real slot span instead of always rendering at a fixed 12.2m length).
+const _instObj = new THREE.Object3D();
 const CONTAINER_HOVER_BRIGHTEN = 1.35;
 
 const InstancedContainerGroup = ({ items, geometry, material, onClick }) => {
@@ -1920,9 +2106,11 @@ const InstancedContainerGroup = ({ items, geometry, material, onClick }) => {
     const mesh = meshRef.current;
     if (!mesh) return;
     items.forEach((c, i) => {
-      _instMatrix.makeRotationY(-c.angle);
-      _instMatrix.setPosition(c.x, c.y, c.z);
-      mesh.setMatrixAt(i, _instMatrix);
+      _instObj.position.set(c.x, c.y, c.z);
+      _instObj.rotation.set(0, -c.angle, 0);
+      _instObj.scale.set(c.lenScale || 1, 1, 1);
+      _instObj.updateMatrix();
+      mesh.setMatrixAt(i, _instObj.matrix);
       mesh.setColorAt(i, _instColor.setRGB(1, 1, 1));
     });
     mesh.instanceMatrix.needsUpdate = true;
@@ -3126,7 +3314,9 @@ function App() {
         const dist = Math.hypot(dx, dz);
         if (dist > maxDist) { maxDist = dist; angle = Math.atan2(dz, dx); }
       }
-      slotGroups[formattedId].polygons.push({ cx, cz, angle });
+      // `len` = the real footprint length of this slot cell — used later to size 40ft
+      // containers to the actual gap between their two sub-slots instead of a fixed length.
+      slotGroups[formattedId].polygons.push({ cx, cz, angle, len: maxDist });
     });
 
     const result = [];
@@ -3140,11 +3330,32 @@ function App() {
       const height = 2.6;
       const y = (stackLvl - 1) * height + height / 2 + 0.1;
 
-      let x = 0, z = 0, angle = 0;
+      let x = 0, z = 0, angle = 0, lenScale = 1;
       if (is40) {
-        let sumX = 0, sumZ = 0;
-        group.polygons.forEach((p) => { sumX += p.cx; sumZ += p.cz; });
-        x = sumX / group.polygons.length; z = sumZ / group.polygons.length; angle = group.polygons[0].angle;
+        const polys = group.polygons;
+        if (polys.length >= 2) {
+          // Sirf woh do slot-cells lo jo sabse zyada door hain — yehi asli 2 sub-slot
+          // hain jo milke 40ft bay banate hain. Sirf inhi ka use karne se container
+          // exactly unke beech center hoga aur uski length real gap ke hisaab se set
+          // hogi — ab woh apni jagah se bahar overflow nahi karega.
+          let bestA = 0, bestB = 1, bestDist = -1;
+          for (let a = 0; a < polys.length; a++) {
+            for (let b = a + 1; b < polys.length; b++) {
+              const dx = polys[b].cx - polys[a].cx, dz = polys[b].cz - polys[a].cz;
+              const dist = Math.hypot(dx, dz);
+              if (dist > bestDist) { bestDist = dist; bestA = a; bestB = b; }
+            }
+          }
+          const pA = polys[bestA], pB = polys[bestB];
+          x = (pA.cx + pB.cx) / 2;
+          z = (pA.cz + pB.cz) / 2;
+          angle = pA.angle;
+          const span = bestDist + (pA.len + pB.len) / 2;
+          lenScale = span > 0.5 ? Math.min(1.15, Math.max(0.75, span / 12.2)) : 1;
+        } else {
+          const p = polys[0];
+          x = p.cx; z = p.cz; angle = p.angle;
+        }
       } else {
         const stackKey = `stack_${stackLvl}`;
         if (group[stackKey] === undefined) group[stackKey] = 0;
@@ -3153,7 +3364,7 @@ function App() {
         x = targetPoly.cx; z = targetPoly.cz; angle = targetPoly.angle;
         group[stackKey]++;
       }
-      result.push({ ...container, x, y, z, angle, is40 });
+      result.push({ ...container, x, y, z, angle, is40, lenScale });
     });
 
     // === EMPTY-SLOT GRAY FILL ===
@@ -3164,7 +3375,7 @@ function App() {
     const HEIGHT = 2.6;
     result.forEach((c) => {
       const key = `${c.x.toFixed(2)}_${c.z.toFixed(2)}`;
-      if (!columnMap.has(key)) columnMap.set(key, { stacks: new Map(), is40: c.is40, angle: c.angle, x: c.x, z: c.z });
+      if (!columnMap.has(key)) columnMap.set(key, { stacks: new Map(), is40: c.is40, angle: c.angle, x: c.x, z: c.z, lenScale: c.lenScale });
       columnMap.get(key).stacks.set(c.stack, true);
     });
 
@@ -3183,6 +3394,7 @@ function App() {
             z: col.z,
             angle: col.angle,
             is40: col.is40,
+            lenScale: col.lenScale,
             stack: lvl,
           });
         }
@@ -3311,6 +3523,10 @@ function App() {
         <AutomationGate3D center={center} isDark={isDark} lanes={CGI_GATE_LANES} label="CGI Gantry" stripedPoles />
         <BoomBarrier3D center={center} isDark={isDark} coords={CGI_BOOM_BARRIER_COORDS} label="CGI Boom Barrier" lane={CGI_GATE_LANES[0]} />
 
+        {/* === OCR GATE (orange pole gantry across 3 points, 2 back-to-back segments) === */}
+        <AutomationGate3D center={center} isDark={isDark} lanes={OCR_GATE_LANES} label="OCR Gate" poleColor="#F97316" />
+        <BoomBarrier3D center={center} isDark={isDark} coords={OCR_BOOM_BARRIER_COORDS} label="OCR Boom Barrier" lane={OCR_BOOM_LANE} />
+
         {/* === NEW REALISTIC QR CODE SCANNERS === */}
         <QRCodeScanner3D center={center} isDark={isDark} />
 
@@ -3323,6 +3539,8 @@ function App() {
 
         <ParkingRoad3D center={center} isDark={isDark} />
         <ParkingWall3D center={center} isDark={isDark} />
+        <SmallYellowBlackWall3D center={center} isDark={isDark} />
+        <SmallYellowBlackWall3D center={center} isDark={isDark} lines={SMALL_WALL_LINES_2} />
         <GreeneryArea3D center={center} isDark={isDark} />
 
         <BoundaryWall3D center={center} isDark={isDark} />
