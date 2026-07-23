@@ -113,30 +113,38 @@ const GARDEN_PATH_COORDS = [
   [28.509215859948863, 77.28774135856749],
 ];
 
+// === Domestic boundary fencing — a green chain-link "jaali" fence running
+// through these points, matching the reference photos (thin dark posts, a
+// slightly transparent green diamond-mesh fabric between them). ===
+const DOMESTIC_FENCE_COORDS = [
+  [28.50957760, 77.28654766],
+  [28.50944139, 77.28655315],
+  [28.50945883, 77.28694747],
+  [28.51357455, 77.28674464],
+  [28.51356438, 77.28636305],
+  [28.51343122, 77.28636901],
+];
+
 // === CGO gantry lane + boom barrier (updated location per user request) ===
 const CGO_GATE_LANES = [
   [
-    [28.50940229319682, 77.2867655093163],
-    [28.509342779912718, 77.28676685042069]
+    [28.509355477586595, 77.28664647916409],
+    [28.509288893385484, 77.28663977364205]
   ]
 ];
 const CGO_BOOM_BARRIER_COORDS = [
-  {
-    lat: 28.509404060917614,
-    lng: 77.28675276882439,
-    face:"right"
-  }
+  { lat: 28.50935135290278, lng: 77.28669006505746, face: "right" }
 ];
 
-// === CGI gantry lane + boom barrier (updated location per user request).  , 
+// === CGI gantry lane + boom barrier (updated location per user request) ===
 const CGI_GATE_LANES = [
   [
-    [28.513650379062337, 77.28631105831475], 
-    [ 28.513588260301656,  77.28635497405854]
+    [28.513614280444134, 77.2863013733867],
+    [28.51356732118828, 77.28638662530103]
   ]
 ];
 const CGI_BOOM_BARRIER_COORDS = [
-  { lat: 28.513583554333458, lng:  77.2863367650916, face: "left" }
+  { lat: 28.513553904254202, lng: 77.28629119405366, face: "right" }
 ];
 
 
@@ -371,7 +379,7 @@ const bbPivotGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.6, 16);
 const bbArmGeo = new THREE.BoxGeometry(4.0, 0.15, 0.05);
 const bbLedGeo = new THREE.BoxGeometry(0.2, 0.05, 0.2);
 
-const BoomBarrier3D = ({ center, isDark, coords = BOOM_BARRIER_COORDS, label = "Access Control Boom Barrier" }) => {
+const BoomBarrier3D = ({ center, isDark, coords = BOOM_BARRIER_COORDS, label = "Access Control Boom Barrier", lane = null }) => {
   const [hovered, setHovered] = useState(false);
   const stripeTexture = useMemo(() => createRedWhiteStripeTexture(), []);
 
@@ -380,13 +388,27 @@ const BoomBarrier3D = ({ center, isDark, coords = BOOM_BARRIER_COORDS, label = "
     const cab = [], piv = [], arm = [], led = [];
     let minX = Infinity, minZ = Infinity, maxX = -Infinity, maxZ = -Infinity;
 
+    // If a `lane` (same [ [lat,lng], [lat,lng] ] pair used for the gate poles) is
+    // supplied, orient the barrier arm to match that lane's own bearing instead of
+    // the fixed -45° angle that was only correct for the original automation gate's
+    // road orientation. This keeps the arm swinging across the correct lane no
+    // matter which direction the road actually runs.
+    let laneBaseAngle = -Math.PI / 4;
+    if (lane) {
+      const lp1 = { x: (lane[0][1] - center.lng) * LAT_TO_METERS * lngScale, z: -(lane[0][0] - center.lat) * LAT_TO_METERS };
+      const lp2 = { x: (lane[1][1] - center.lng) * LAT_TO_METERS * lngScale, z: -(lane[1][0] - center.lat) * LAT_TO_METERS };
+      laneBaseAngle = -Math.atan2(lp2.z - lp1.z, lp2.x - lp1.x);
+    }
+
     coords.forEach((coord) => {
       const x = (coord.lng - center.lng) * LAT_TO_METERS * lngScale;
       const z = -(coord.lat - center.lat) * LAT_TO_METERS;
       minX = Math.min(minX, x); maxX = Math.max(maxX, x);
       minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
 
-      const rotY = coord.face === "right" ? -Math.PI / 4 : (-Math.PI / 4) + Math.PI;
+      // coord.rotationOffset (radians) lets you nudge the arm angle by hand if the
+      // auto-computed lane bearing isn't perfectly spot on — defaults to 0.
+      const rotY = (coord.face === "right" ? laneBaseAngle : laneBaseAngle + Math.PI) + (coord.rotationOffset || 0);
 
       cab.push(composeWorldMatrix([x, 0.55, z], rotY, [0, 0, 0], [1, 1, 1]));
       led.push(composeWorldMatrix([x, 1.125, z], rotY, [0, 0, 0], [1, 1, 1]));
@@ -398,7 +420,7 @@ const BoomBarrier3D = ({ center, isDark, coords = BOOM_BARRIER_COORDS, label = "
     const cz = (minZ + maxZ) / 2 || 0;
 
     return { cabinetM: cab, pivotM: piv, armM: arm, ledM: led, bounds: { cx, cz } };
-  }, [center, coords]);
+  }, [center, coords, lane]);
 
   const cabMat = useMemo(() => new THREE.MeshStandardMaterial({ color: "#F97316", roughness: 0.4, metalness: 0.2 }), []);
   const pivMat = useMemo(() => new THREE.MeshStandardMaterial({ color: "#374151", roughness: 0.6, metalness: 0.8 }), []);
@@ -1648,19 +1670,66 @@ const InGate3D = ({ center, isDark }) => {
   );
 };
 
-const OutGate3D = ({ center, isDark }) => {
-  const [hovered, setHovered] = useState(false);
-  const islandColor = isDark ? "#4B5563" : "#D1D5DB";
-  const metalColor = isDark ? "#374151" : "#64748B";
-  const islandMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: islandColor, roughness: 0.9 }), [islandColor]);
-  const poleMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: metalColor, metalness: 0.8, roughness: 0.3 }), [metalColor]);
-  const railingMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: metalColor, metalness: 0.8 }), [metalColor]);
-  const boothTopMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: metalColor, roughness: 0.6 }), [metalColor]);
-  const metalDefaultMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: metalColor }), [metalColor]);
-  const roofMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: "#065F46", roughness: 0.7, metalness: 0.1 }), []);
-  const roofAccentMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: "#047857", roughness: 0.6 }), []);
+// === Terminal Out-Gate replaced with a gray mesh/"jaali" swing gate ===
+// 4 leaves span the same footprint the old booth-style out-gate used. The two
+// leftmost leaves are shown permanently swung open (the drive-through lane);
+// the other two stay shut. One small boom barrier sits just inside the line,
+// guarding the open lane.
+function createChainLinkTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 128; canvas.height = 128;
+  const ctx = canvas.getContext("2d");
+  // Solid light-gray backing first so the panel reads clearly as a gray mesh
+  // gate rather than near-invisible dark lines on a transparent hole.
+  ctx.fillStyle = "rgba(156,163,175,0.55)";
+  ctx.fillRect(0, 0, 128, 128);
+  ctx.strokeStyle = "rgba(75,85,99,0.9)";
+  ctx.lineWidth = 2.4;
+  for (let i = -128; i < 256; i += 16) {
+    ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i + 128, 128); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(i, 128); ctx.lineTo(i + 128, 0); ctx.stroke();
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping; texture.wrapT = THREE.RepeatWrapping;
+  return texture;
+}
 
-  const { cx, cz, angle, width, depth } = useMemo(() => {
+// Same weave, but green — used for the shed roof over the gate so it reads as a
+// green lattice/"jaali" canopy instead of a solid box.
+function createGreenLatticeTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 128; canvas.height = 128;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "rgba(6,95,70,0.6)";
+  ctx.fillRect(0, 0, 128, 128);
+  ctx.strokeStyle = "rgba(4,120,87,0.95)";
+  ctx.lineWidth = 2.4;
+  for (let i = -128; i < 256; i += 16) {
+    ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i + 128, 128); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(i, 128); ctx.lineTo(i + 128, 0); ctx.stroke();
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping; texture.wrapT = THREE.RepeatWrapping;
+  return texture;
+}
+
+const meshGatePillarGeo = new THREE.BoxGeometry(0.36, 3.4, 0.36);
+const meshGatePillarCapGeo = new THREE.BoxGeometry(0.46, 0.14, 0.46);
+const meshGateBoomCabinetGeo = new THREE.BoxGeometry(0.55, 1.05, 0.45);
+const meshGateBoomArmGeo = new THREE.BoxGeometry(2.4, 0.13, 0.06);
+const meshGateBoomPivotGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.5, 12);
+
+const GATE_HEIGHT = 2.6;
+const PILLAR_HEIGHT = 3.8;
+const NUM_GATE_LEAVES = 4;
+const OPEN_LEAF_COUNT = 0; // only the leftmost leaf ("gate 1") is open; the other 3 stay shut
+const GATE_OPEN_ANGLE = (100 * Math.PI) / 180;
+
+const TerminalMeshGate3D = ({ center, isDark, label = "Terminal Out-Gate" }) => {
+  const [hovered, setHovered] = useState(false);
+  const meshTexture = useMemo(() => createChainLinkTexture(), []);
+
+  const { cx, cz, angle, width } = useMemo(() => {
     const lngScale = Math.cos((center.lat * Math.PI) / 180);
     const points2D = [];
     OUTGATE_POLYGON.forEach((coord) => {
@@ -1680,92 +1749,200 @@ const OutGate3D = ({ center, isDark }) => {
       const dist = Math.hypot(dx, dz);
       if (dist > maxDist) { maxDist = dist; localAngle = Math.atan2(dz, dx); }
     }
-    return { cx: centerX, cz: centerZ, angle: localAngle, width: maxDist, depth: 6 };
+    return { cx: centerX, cz: centerZ, angle: localAngle, width: maxDist };
   }, [center]);
 
-  const roofHeight = 5.5; const numLanes = 1; const numBooths = 2;
-  const laneSpacing = width / numLanes;
-  const polePostGeo = useMemo(() => new THREE.CylinderGeometry(0.2, 0.2, roofHeight, 8), [roofHeight]);
-  const armLength = laneSpacing - 2.8;
-  const segCount = 8;
-  const segLength = armLength / segCount;
-  const barrierSegGeo = useMemo(() => new THREE.BoxGeometry(segLength, 0.15, 0.05), [segLength]);
+  const leafWidth = width / NUM_GATE_LEAVES;
 
-  const matrices = useMemo(() => {
+  // These leaf geometries are built with their own origin sitting at the hinge edge
+  // (x=0) rather than centered, so rotating an instance swings it open around its
+  // pillar instead of spinning in place.
+  // Panels are inset well clear of the leafWidth span (not just a hairline) so
+  // there is a real visible gap between adjacent gate sheets, on both sides of
+  // each pillar.
+  const LEAF_GAP = 0.4;
+  const leafFrameGeo = useMemo(() => {
+    const g = new THREE.BoxGeometry(leafWidth - LEAF_GAP, GATE_HEIGHT - 0.1, 0.08);
+    g.translate(leafWidth / 2, (GATE_HEIGHT - 0.1) / 2 + 0.05, 0);
+    return g;
+  }, [leafWidth]);
+  const leafMeshGeo = useMemo(() => {
+    const g = new THREE.PlaneGeometry(leafWidth - LEAF_GAP - 0.14, GATE_HEIGHT - 0.34);
+    g.translate(leafWidth / 2, (GATE_HEIGHT - 0.1) / 2 + 0.05, 0.001);
+    return g;
+  }, [leafWidth]);
+  const leafTopBarGeo = useMemo(() => {
+    const g = new THREE.BoxGeometry(leafWidth - LEAF_GAP, 0.06, 0.1);
+    g.translate(leafWidth / 2, GATE_HEIGHT - 0.05, 0);
+    return g;
+  }, [leafWidth]);
+  const leafBottomBarGeo = useMemo(() => {
+    const g = new THREE.BoxGeometry(leafWidth - LEAF_GAP, 0.06, 0.1);
+    g.translate(leafWidth / 2, 0.05, 0);
+    return g;
+  }, [leafWidth]);
+
+  const { pillarM, pillarCapM, leafM, boomMatrix } = useMemo(() => {
     const parentPos = [cx, 0, cz];
     const rotY = -angle;
-    const island = [], pole = [], railingBar = [], railingPost = [];
-    const boothBox = [], boothTop = [], glassFront = [], glassSide = [];
-    const barrierBox = [], barrierBase = [], barrierSegRed = [], barrierSegWhite = [], barrierLight = [];
-    const lightCyl = [], lightCap = [];
+    const startX = -width / 2;
 
-    for (let i = 0; i < numBooths; i++) {
-      const offsetX = -width / 2 + i * laneSpacing;
-      island.push(composeWorldMatrix(parentPos, rotY, [offsetX, 0.2, 0], [1, 1, 1]));
-      pole.push(composeWorldMatrix(parentPos, rotY, [offsetX, roofHeight / 2, -1.5], [1, 1, 1]));
+    const pillars = [], pillarCaps = [], leaves = [];
 
-      const railX = offsetX + (i === 0 ? -0.9 : 0.9);
-      railingBar.push(composeWorldMatrix(parentPos, rotY, [railX, 1.1, 0], [1, 1, 1]));
-      railingBar.push(composeWorldMatrix(parentPos, rotY, [railX, 0.75, 0], [1, 1, 1]));
-      [-5.8 / 2.5, 0, 5.8 / 2.5].forEach((zOff) => {
-        railingPost.push(composeWorldMatrix(parentPos, rotY, [railX, 0.85, zOff], [1, 1, 1]));
-      });
-
-      if (i === 0) {
-        boothBox.push(composeWorldMatrix(parentPos, rotY, [offsetX, 2.2, 1], [1, 1, 1]));
-        boothTop.push(composeWorldMatrix(parentPos, rotY, [offsetX, 4.05, 1], [1, 1, 1]));
-        glassFront.push(composeWorldMatrix(parentPos, rotY, [offsetX, 2.5, 2.41], [1, 1, 1]));
-        glassSide.push(composeWorldMatrix(parentPos, rotY, [offsetX - 0.81, 2.5, 1], [1, 1, 1]));
-        glassSide.push(composeWorldMatrix(parentPos, rotY, [offsetX + 0.81, 2.5, 1], [1, 1, 1]));
-
-        barrierBox.push(composeWorldMatrix(parentPos, rotY, [offsetX + 1.4, 0.9, 2], [1, 1, 1]));
-        barrierBase.push(composeWorldMatrix(parentPos, rotY, [offsetX + 1.4, 0.4, 2], [1, 1, 1]));
-        for (let s = 0; s < segCount; s++) {
-          const segX = offsetX + 1.6 + s * segLength + segLength / 2;
-          (s % 2 === 0 ? barrierSegRed : barrierSegWhite).push(composeWorldMatrix(parentPos, rotY, [segX, 1.3, 2], [1, 1, 1]));
-        }
-        barrierLight.push(composeWorldMatrix(parentPos, rotY, [offsetX + 1.6 + armLength, 1.4, 2], [1, 1, 1]));
-      }
-      if (i === 1) {
-        lightCyl.push(composeWorldMatrix(parentPos, rotY, [offsetX - 1.4, 0.5, 2], [1, 1, 1]));
-        lightCap.push(composeWorldMatrix(parentPos, rotY, [offsetX - 1.4, 1.0, 2], [1, 1, 1]));
-      }
+    for (let i = 0; i <= NUM_GATE_LEAVES; i++) {
+      const px = startX + i * leafWidth;
+      // Pillars are taller than the gate mesh itself and stand on the ground,
+      // so they clearly stick up above the panels like a real fence post.
+      pillars.push(composeWorldMatrix(parentPos, rotY, [px, PILLAR_HEIGHT / 2, 0], [1, 1, 1]));
+      pillarCaps.push(composeWorldMatrix(parentPos, rotY, [px, PILLAR_HEIGHT + 0.07, 0], [1, 1, 1]));
+    }
+for (let i = 0; i < NUM_GATE_LEAVES; i++) {
+      const hingeX = startX + i * leafWidth;
+      const isOpen = i === 2; // only "gate 2" (2nd leaf from the left) opens
+      leaves.push(composeWorldMatrix(parentPos, rotY, [hingeX, 0, 0], [1, 1, 1], [0, isOpen ? GATE_OPEN_ANGLE : 0, 0]));
     }
 
-    return { island, pole, railingBar, railingPost, boothBox, boothTop, glassFront, glassSide, barrierBox, barrierBase, barrierSegRed, barrierSegWhite, barrierLight, lightCyl, lightCap };
-  }, [cx, cz, angle, width, laneSpacing, numBooths, roofHeight, armLength, segLength]);
+    // One small boom barrier, set slightly back into the yard, positioned at the
+    // pillar between "gate 2" and "gate 3" — right where the open lane ends and
+    // the closed leaves begin.
+    const boomX = startX + OPEN_LEAF_COUNT * leafWidth;
+    const boom = composeWorldMatrix(parentPos, rotY, [boomX, 0, 1.4], [1, 1, 1]);
+
+    return { pillarM: pillars, pillarCapM: pillarCaps, leafM: leaves, boomMatrix: boom };
+  }, [cx, cz, angle, width, leafWidth]);
+
+  const pillarMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: "#6B7280", roughness: 0.6, metalness: 0.4 }), []);
+  const pillarCapMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: "#4B5563", roughness: 0.6, metalness: 0.4 }), []);
+  const leafFrameMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: "#6B7280", roughness: 0.6, metalness: 0.4 }), []);
+  // Unlit (MeshBasicMaterial) so the panel always reads as gray mesh regardless
+  // of which way it faces the scene lights — this is what was making it look
+  // black before (the backlit side of the leaf was rendering almost unlit).
+  const leafMeshMaterial = useMemo(() => new THREE.MeshBasicMaterial({ map: meshTexture, color: "#D1D5DB", transparent: true, opacity: 0.95, side: THREE.DoubleSide }), [meshTexture]);
+  const boomCabinetMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: "#F97316", roughness: 0.4, metalness: 0.2 }), []);
+  const boomPivotMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: "#374151", roughness: 0.6, metalness: 0.8 }), []);
+  const boomStripeTexture = useMemo(() => createRedWhiteStripeTexture(), []);
+  const boomArmMaterial = useMemo(() => new THREE.MeshStandardMaterial({ map: boomStripeTexture, roughness: 0.7 }), [boomStripeTexture]);
+  const greenLatticeTexture = useMemo(() => createGreenLatticeTexture(), []);
+  const roofMaterial = useMemo(() => new THREE.MeshBasicMaterial({ map: greenLatticeTexture, color: "#10B981", transparent: true, opacity: 0.95, side: THREE.DoubleSide }), [greenLatticeTexture]);
+  const roofAccentMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: "#047857", roughness: 0.6 }), []);
+  const roofHeight = GATE_HEIGHT + 1.7;
+  const roofDepth = 4;
+  // Shifts the whole roof canopy toward the yard (away from the road-facing side)
+  // so it sits back over the gate instead of jutting out in front of it. Flip the
+  // sign here if it ends up shifted the wrong way for your camera framing.
+  const roofZOffset = -1.6;
 
   return (
     <group
       onPointerOver={(e) => { e.stopPropagation(); setHovered(true); document.body.style.cursor = "pointer"; }}
       onPointerOut={(e) => { e.stopPropagation(); setHovered(false); document.body.style.cursor = "auto"; }}
     >
+      {/* Green lattice shed roof, lying flat, set back over the gate rather than out front */}
       <group position={[cx, roofHeight, cz]} rotation={[0, -angle, 0]}>
-        <mesh castShadow receiveShadow position={[0, 0, 0]} material={roofMaterial}><boxGeometry args={[width + 4, 0.6, depth]} /></mesh>
-        <mesh position={[0, 0.15, 0]} material={roofAccentMaterial}><boxGeometry args={[width + 4.2, 0.8, depth + 0.2]} /></mesh>
+        <mesh castShadow receiveShadow position={[0, 0, roofZOffset]} rotation={[-Math.PI / 2, 0, 0]} material={roofMaterial}><planeGeometry args={[width + 3.6, roofDepth - 0.3]} /></mesh>
+        <mesh position={[0, 0.15, roofZOffset]} material={roofAccentMaterial}><boxGeometry args={[width + 4.2, 0.15, roofDepth + 0.2]} /></mesh>
       </group>
-      <InstancedStatic geometry={gateIslandGeo} material={islandMaterial} matrices={matrices.island} castShadow receiveShadow />
-      <InstancedStatic geometry={polePostGeo} material={poleMaterial} matrices={matrices.pole} castShadow />
-      <InstancedStatic geometry={gateRailingBarGeo} material={railingMaterial} matrices={matrices.railingBar} castShadow />
-      <InstancedStatic geometry={gateRailingPostGeo} material={railingMaterial} matrices={matrices.railingPost} castShadow />
-      <InstancedStatic geometry={gateBoothBoxGeo} material={gateSkinMaterial} matrices={matrices.boothBox} castShadow receiveShadow />
-      <InstancedStatic geometry={gateBoothTopGeo} material={boothTopMaterial} matrices={matrices.boothTop} castShadow />
-      <InstancedStatic geometry={gateGlassFrontGeo} material={gateGlassMaterial} matrices={matrices.glassFront} castShadow />
-      <InstancedStatic geometry={gateGlassSideGeo} material={gateGlassMaterial} matrices={matrices.glassSide} castShadow />
-      <InstancedStatic geometry={gateBarrierBoxGeo} material={gateYellowWarningMaterial} matrices={matrices.barrierBox} castShadow />
-      <InstancedStatic geometry={gateBarrierBaseGeo} material={metalDefaultMaterial} matrices={matrices.barrierBase} castShadow />
-      <InstancedStatic geometry={barrierSegGeo} material={gateBarrierRedMaterial} matrices={matrices.barrierSegRed} castShadow />
-      <InstancedStatic geometry={barrierSegGeo} material={gateBarrierWhiteMaterial} matrices={matrices.barrierSegWhite} castShadow />
-      <InstancedStatic geometry={gateBarrierLightGeo} material={gateBarrierLightMaterial} matrices={matrices.barrierLight} />
-      <InstancedStatic geometry={gateLightPoleCylGeo} material={gateYellowWarningDefaultMaterial} matrices={matrices.lightCyl} castShadow />
-      <InstancedStatic geometry={gateLightPoleCapGeo} material={metalDefaultMaterial} matrices={matrices.lightCap} />
+      <InstancedStatic geometry={meshGatePillarGeo} material={pillarMaterial} matrices={pillarM} castShadow receiveShadow />
+      <InstancedStatic geometry={meshGatePillarCapGeo} material={pillarCapMaterial} matrices={pillarCapM} castShadow />
+      <InstancedStatic geometry={leafFrameGeo} material={leafFrameMaterial} matrices={leafM} castShadow receiveShadow />
+      <InstancedStatic geometry={leafTopBarGeo} material={leafFrameMaterial} matrices={leafM} castShadow />
+      <InstancedStatic geometry={leafBottomBarGeo} material={leafFrameMaterial} matrices={leafM} castShadow />
+      <InstancedStatic geometry={leafMeshGeo} material={leafMeshMaterial} matrices={leafM} />
+
+      <group matrix={boomMatrix} matrixAutoUpdate={false}>
+        <mesh geometry={meshGateBoomCabinetGeo} material={boomCabinetMaterial} position={[0, 0.55, 0]} castShadow receiveShadow />
+        <mesh geometry={meshGateBoomPivotGeo} material={boomPivotMaterial} position={[0, 1.0, 0.3]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow />
+        <mesh geometry={meshGateBoomArmGeo} material={boomArmMaterial} position={[1.2, 1.0, 0.3]} castShadow receiveShadow />
+      </group>
+
       {hovered && (
-        <Html position={[cx, roofHeight + 3, cz]} center style={{ pointerEvents: "none" }}>
-          <div className={`tooltip-3d ${isDark ? "dark" : "light"}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: "bold", fontSize: "14px", background: "#065F46", color: "#fff", border: "none", padding: "8px 14px", borderRadius: "6px", boxShadow: "0 6px 10px rgba(0,0,0,0.4)" }}>
-            <span>🚦</span> Terminal Out-Gate
+        <Html position={[cx, GATE_HEIGHT + 3, cz]} center style={{ pointerEvents: "none" }}>
+          <div className={`tooltip-3d ${isDark ? "dark" : "light"}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: "bold", fontSize: "14px", background: "#4B5563", color: "#fff", border: "none", padding: "8px 14px", borderRadius: "6px", boxShadow: "0 6px 10px rgba(0,0,0,0.4)" }}>
+            <span>🚧</span> {label}
           </div>
         </Html>
       )}
+    </group>
+  );
+};
+
+// === Domestic boundary chain-link fencing (green "jaali") ===
+// Runs a green mesh fabric between metal posts along the DOMESTIC_FENCE_COORDS
+// polyline — thicker posts with concrete-look bases, top AND bottom tension
+// wires, and a texture that repeats at a real diamond-cell scale (instead of
+// one huge stretched diamond per segment) so it actually reads as chain-link.
+const domesticFencePostGeo = new THREE.CylinderGeometry(0.055, 0.065, 2.25, 8);
+const domesticFencePostBaseGeo = new THREE.CylinderGeometry(0.14, 0.16, 0.18, 10);
+const domesticFenceTopWireGeo = new THREE.CylinderGeometry(0.018, 0.018, 1, 6);
+const DOMESTIC_FENCE_HEIGHT = 2.1;
+const DOMESTIC_FENCE_POST_SPACING = 3;
+const DOMESTIC_FENCE_CELL_SIZE = 0.35; // real-world size of one diamond cell, for texture repeat
+
+const DomesticFence3D = ({ center, isDark }) => {
+  const { postMatrices, postBaseMatrices, topWireMatrices, bottomWireMatrices, panels } = useMemo(() => {
+    const lngScale = Math.cos((center.lat * Math.PI) / 180);
+    const pts = DOMESTIC_FENCE_COORDS.map(([lat, lng]) => ({
+      x: (lng - center.lng) * LAT_TO_METERS * lngScale,
+      z: -(lat - center.lat) * LAT_TO_METERS,
+    }));
+
+    const posts = [], postBases = [], topWires = [], bottomWires = [], panelList = [];
+
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p1 = pts[i]; const p2 = pts[i + 1];
+      const dx = p2.x - p1.x; const dz = p2.z - p1.z;
+      const segLen = Math.hypot(dx, dz);
+      if (segLen < 0.05) continue;
+      const angle = Math.atan2(dz, dx);
+      const rotY = -angle;
+
+      const numPosts = Math.max(1, Math.round(segLen / DOMESTIC_FENCE_POST_SPACING));
+      const postGap = segLen / numPosts;
+      for (let p = 0; p <= numPosts; p++) {
+        // Skip the very last post of every segment except the final one, so
+        // shared posts at each bend aren't doubled up.
+        if (p === numPosts && i < pts.length - 2) continue;
+        const px = p1.x + (dx / segLen) * p * postGap;
+        const pz = p1.z + (dz / segLen) * p * postGap;
+        posts.push(composeWorldMatrix([px, DOMESTIC_FENCE_HEIGHT / 2, pz], 0, [0, 0, 0], [1, 1, 1]));
+        postBases.push(composeWorldMatrix([px, 0.09, pz], 0, [0, 0, 0], [1, 1, 1]));
+      }
+
+      const midX = (p1.x + p2.x) / 2; const midZ = (p1.z + p2.z) / 2;
+      topWires.push(composeWorldMatrix([midX, DOMESTIC_FENCE_HEIGHT - 0.06, midZ], rotY, [0, 0, 0], [1, segLen, 1], [0, 0, Math.PI / 2]));
+      bottomWires.push(composeWorldMatrix([midX, 0.1, midZ], rotY, [0, 0, 0], [1, segLen, 1], [0, 0, Math.PI / 2]));
+
+      const cellsX = Math.max(1, Math.round(segLen / DOMESTIC_FENCE_CELL_SIZE));
+      const cellsY = Math.max(1, Math.round((DOMESTIC_FENCE_HEIGHT - 0.3) / DOMESTIC_FENCE_CELL_SIZE));
+      const segTexture = createChainLinkTexture();
+      segTexture.repeat.set(cellsX, cellsY);
+
+      panelList.push({
+        geo: new THREE.PlaneGeometry(segLen, DOMESTIC_FENCE_HEIGHT - 0.3),
+        cx: midX, cz: midZ, rotY, texture: segTexture,
+      });
+    }
+
+    return { postMatrices: posts, postBaseMatrices: postBases, topWireMatrices: topWires, bottomWireMatrices: bottomWires, panels: panelList };
+  }, [center]);
+
+  const postMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: "#374151", roughness: 0.5, metalness: 0.6 }), []);
+  const postBaseMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: "#78716C", roughness: 0.95 }), []);
+
+  return (
+    <group>
+      <InstancedStatic geometry={domesticFencePostGeo} material={postMaterial} matrices={postMatrices} castShadow receiveShadow />
+      <InstancedStatic geometry={domesticFencePostBaseGeo} material={postBaseMaterial} matrices={postBaseMatrices} castShadow receiveShadow />
+      <InstancedStatic geometry={domesticFenceTopWireGeo} material={postMaterial} matrices={topWireMatrices} />
+      <InstancedStatic geometry={domesticFenceTopWireGeo} material={postMaterial} matrices={bottomWireMatrices} />
+      {panels.map((p, i) => (
+        <mesh key={i} geometry={p.geo} position={[p.cx, DOMESTIC_FENCE_HEIGHT / 2, p.cz]} rotation={[0, p.rotY, 0]}>
+          {/* Unlit so the mesh fabric stays an even, correctly-scaled green
+              diamond weave regardless of light direction, and stays properly
+              see-through rather than reading as a flat dark/solid wall. */}
+          <meshBasicMaterial map={p.texture} color="#16A34A" transparent opacity={0.72} side={THREE.DoubleSide} />
+        </mesh>
+      ))}
     </group>
   );
 };
@@ -3186,12 +3363,12 @@ function App() {
         <AutomationGate3D center={center} isDark={isDark} />
 
         {/* === CGO GANTRY + BOOM BARRIER (added at user request) === */}
-        <AutomationGate3D center={center} isDark={isDark} lanes={CGO_GATE_LANES} label="CGO Gate" stripedPoles />
-        <BoomBarrier3D center={center} isDark={isDark} coords={CGO_BOOM_BARRIER_COORDS} label="CGO Boom Barrier" />
+        <AutomationGate3D center={center} isDark={isDark} lanes={CGO_GATE_LANES} label="CGO Gantry" stripedPoles />
+        <BoomBarrier3D center={center} isDark={isDark} coords={CGO_BOOM_BARRIER_COORDS} label="CGO Boom Barrier" lane={CGO_GATE_LANES[0]} />
 
         {/* === CGI GANTRY + BOOM BARRIER (added at user request) === */}
-        <AutomationGate3D center={center} isDark={isDark} lanes={CGI_GATE_LANES} label="CGI Gate" stripedPoles />
-        <BoomBarrier3D center={center} isDark={isDark} coords={CGI_BOOM_BARRIER_COORDS} label="CGI Boom Barrier" />
+        <AutomationGate3D center={center} isDark={isDark} lanes={CGI_GATE_LANES} label="CGI Gantry" stripedPoles />
+        <BoomBarrier3D center={center} isDark={isDark} coords={CGI_BOOM_BARRIER_COORDS} label="CGI Boom Barrier" lane={CGI_GATE_LANES[0]} />
 
         {/* === NEW REALISTIC QR CODE SCANNERS === */}
         <QRCodeScanner3D center={center} isDark={isDark} />
@@ -3208,9 +3385,10 @@ function App() {
         <GreeneryArea3D center={center} isDark={isDark} />
 
         <BoundaryWall3D center={center} isDark={isDark} />
+        <DomesticFence3D center={center} isDark={isDark} />
         <HeadOffice3D center={center} isDark={isDark} />
         <InGate3D center={center} isDark={isDark} />
-        <OutGate3D center={center} isDark={isDark} />
+        <TerminalMeshGate3D center={center} isDark={isDark} />
 
         <ParkingArea3D center={center} isDark={isDark} />
 
