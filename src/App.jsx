@@ -104,8 +104,6 @@ const HEAD_OFFICE_POLYGON = [
   [28.50921721347462, 77.2876475691699], [28.509125822340106, 77.28766336700072], [28.509129292890968, 77.28761334053647], [28.509039058531517, 77.28761860648007], [28.509036744828975, 77.28754751624142], [28.508996255026346, 77.2875448832696], [28.508995098174594, 77.28756989650174], [28.508910647963845, 77.28757252947354], [28.508902549994893, 77.28748432491817], [28.50884470734014, 77.28748300843061], [28.508676963465497, 77.28731844769297], [28.508670022332243, 77.28724209150724], [28.50859714042292, 77.28723945853544], [28.508587885573693, 77.28714467155055], [28.508600610991166, 77.28709727805813], [28.508543925028732, 77.28709332860042], [28.508541611315344, 77.28699854161553], [28.50849070960772, 77.28699590864375], [28.508488395893163, 77.28689453922934], [28.50902401946127, 77.28687215896902], [28.509030960569564, 77.28697616135523], [28.508850491605273, 77.28698406027061], [28.50885743272499, 77.28722497719053], [28.508907177402953, 77.28726973771117], [28.509207958676942, 77.28725788933805],
 ];
 
-// Small garden path/bed running alongside a wall — yellow/black flower-pot-sized edging blocks
-// around the border, reddish soil filling the inside.
 const GARDEN_PATH_COORDS = [
   [28.508629238165717, 77.28775429210175],
   [28.508625741155715, 77.28778214894476],
@@ -113,9 +111,6 @@ const GARDEN_PATH_COORDS = [
   [28.509215859948863, 77.28774135856749],
 ];
 
-// === Domestic boundary fencing — a green chain-link "jaali" fence running
-// through these points, matching the reference photos (thin dark posts, a
-// slightly transparent green diamond-mesh fabric between them). ===
 const DOMESTIC_FENCE_COORDS = [
   [28.50957760, 77.28654766],
   [28.50944139, 77.28655315],
@@ -125,26 +120,24 @@ const DOMESTIC_FENCE_COORDS = [
   [28.51343122, 77.28636901],
 ];
 
-// === CGO gantry lane + boom barrier (updated location per user request) ===
 const CGO_GATE_LANES = [
   [
     [28.509355477586595, 77.28664647916409],
-    [28.509288893385484, 77.28663977364205]
+    [28.509288893385484, 77.28663977364205]  
   ]
 ];
 const CGO_BOOM_BARRIER_COORDS = [
-  { lat: 28.50935135290278, lng: 77.28669006505746, face: "right" }
+  { lat: 28.50929635342298, lng: 77.28661289559709, face: "left" }
 ];
 
-// === CGI gantry lane + boom barrier (updated location per user request) ===
 const CGI_GATE_LANES = [
   [
-    [28.513614280444134, 77.2863013733867],
-    [28.51356732118828, 77.28638662530103]
+    [28.513628109980527, 77.28633842854047],
+    [28.51356732118828, 77.28638662530103] 
   ]
 ];
 const CGI_BOOM_BARRIER_COORDS = [
-  { lat: 28.513553904254202, lng: 77.28629119405366, face: "right" }
+  { lat: 28.51363246593446, lng: 77.28635825754232, face: "right" } 
 ];
 
 
@@ -159,7 +152,7 @@ useGLTF.preload("/crane.glb");
 useGLTF.preload("/container_loader.glb");
 useGLTF.preload("/train.glb");
 useGLTF.preload("/train2.glb");
-useGLTF.preload("/wagon.glb");              // <-- added wagon preload
+useGLTF.preload("/wagon.glb");             
 useGLTF.preload("/cell_tower_skyward.glb");
 
 const TREE_MODELS = [
@@ -247,7 +240,6 @@ function createRedWhiteStripeTexture() {
   return texture;
 }
 
-// Orange/black diagonal hazard stripe — used for the CGO/CGI gantry poles.
 function createOrangeBlackStripeTexture() {
   const canvas = document.createElement("canvas");
   canvas.width = 128; canvas.height = 512;
@@ -388,11 +380,6 @@ const BoomBarrier3D = ({ center, isDark, coords = BOOM_BARRIER_COORDS, label = "
     const cab = [], piv = [], arm = [], led = [];
     let minX = Infinity, minZ = Infinity, maxX = -Infinity, maxZ = -Infinity;
 
-    // If a `lane` (same [ [lat,lng], [lat,lng] ] pair used for the gate poles) is
-    // supplied, orient the barrier arm to match that lane's own bearing instead of
-    // the fixed -45° angle that was only correct for the original automation gate's
-    // road orientation. This keeps the arm swinging across the correct lane no
-    // matter which direction the road actually runs.
     let laneBaseAngle = -Math.PI / 4;
     if (lane) {
       const lp1 = { x: (lane[0][1] - center.lng) * LAT_TO_METERS * lngScale, z: -(lane[0][0] - center.lat) * LAT_TO_METERS };
@@ -406,8 +393,6 @@ const BoomBarrier3D = ({ center, isDark, coords = BOOM_BARRIER_COORDS, label = "
       minX = Math.min(minX, x); maxX = Math.max(maxX, x);
       minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
 
-      // coord.rotationOffset (radians) lets you nudge the arm angle by hand if the
-      // auto-computed lane bearing isn't perfectly spot on — defaults to 0.
       const rotY = (coord.face === "right" ? laneBaseAngle : laneBaseAngle + Math.PI) + (coord.rotationOffset || 0);
 
       cab.push(composeWorldMatrix([x, 0.55, z], rotY, [0, 0, 0], [1, 1, 1]));
@@ -1670,17 +1655,10 @@ const InGate3D = ({ center, isDark }) => {
   );
 };
 
-// === Terminal Out-Gate replaced with a gray mesh/"jaali" swing gate ===
-// 4 leaves span the same footprint the old booth-style out-gate used. The two
-// leftmost leaves are shown permanently swung open (the drive-through lane);
-// the other two stay shut. One small boom barrier sits just inside the line,
-// guarding the open lane.
 function createChainLinkTexture() {
   const canvas = document.createElement("canvas");
   canvas.width = 128; canvas.height = 128;
   const ctx = canvas.getContext("2d");
-  // Solid light-gray backing first so the panel reads clearly as a gray mesh
-  // gate rather than near-invisible dark lines on a transparent hole.
   ctx.fillStyle = "rgba(156,163,175,0.55)";
   ctx.fillRect(0, 0, 128, 128);
   ctx.strokeStyle = "rgba(75,85,99,0.9)";
@@ -1693,9 +1671,6 @@ function createChainLinkTexture() {
   texture.wrapS = THREE.RepeatWrapping; texture.wrapT = THREE.RepeatWrapping;
   return texture;
 }
-
-// Same weave, but green — used for the shed roof over the gate so it reads as a
-// green lattice/"jaali" canopy instead of a solid box.
 function createGreenLatticeTexture() {
   const canvas = document.createElement("canvas");
   canvas.width = 128; canvas.height = 128;
@@ -1722,7 +1697,7 @@ const meshGateBoomPivotGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.5, 12);
 const GATE_HEIGHT = 2.6;
 const PILLAR_HEIGHT = 3.8;
 const NUM_GATE_LEAVES = 4;
-const OPEN_LEAF_COUNT = 0; // only the leftmost leaf ("gate 1") is open; the other 3 stay shut
+const OPEN_LEAF_COUNT = 0;
 const GATE_OPEN_ANGLE = (100 * Math.PI) / 180;
 
 const TerminalMeshGate3D = ({ center, isDark, label = "Terminal Out-Gate" }) => {
@@ -1753,13 +1728,6 @@ const TerminalMeshGate3D = ({ center, isDark, label = "Terminal Out-Gate" }) => 
   }, [center]);
 
   const leafWidth = width / NUM_GATE_LEAVES;
-
-  // These leaf geometries are built with their own origin sitting at the hinge edge
-  // (x=0) rather than centered, so rotating an instance swings it open around its
-  // pillar instead of spinning in place.
-  // Panels are inset well clear of the leafWidth span (not just a hairline) so
-  // there is a real visible gap between adjacent gate sheets, on both sides of
-  // each pillar.
   const LEAF_GAP = 0.4;
   const leafFrameGeo = useMemo(() => {
     const g = new THREE.BoxGeometry(leafWidth - LEAF_GAP, GATE_HEIGHT - 0.1, 0.08);
@@ -1791,20 +1759,15 @@ const TerminalMeshGate3D = ({ center, isDark, label = "Terminal Out-Gate" }) => 
 
     for (let i = 0; i <= NUM_GATE_LEAVES; i++) {
       const px = startX + i * leafWidth;
-      // Pillars are taller than the gate mesh itself and stand on the ground,
-      // so they clearly stick up above the panels like a real fence post.
       pillars.push(composeWorldMatrix(parentPos, rotY, [px, PILLAR_HEIGHT / 2, 0], [1, 1, 1]));
       pillarCaps.push(composeWorldMatrix(parentPos, rotY, [px, PILLAR_HEIGHT + 0.07, 0], [1, 1, 1]));
     }
 for (let i = 0; i < NUM_GATE_LEAVES; i++) {
       const hingeX = startX + i * leafWidth;
-      const isOpen = i === 2; // only "gate 2" (2nd leaf from the left) opens
+      const isOpen = i === 2; 
       leaves.push(composeWorldMatrix(parentPos, rotY, [hingeX, 0, 0], [1, 1, 1], [0, isOpen ? GATE_OPEN_ANGLE : 0, 0]));
     }
 
-    // One small boom barrier, set slightly back into the yard, positioned at the
-    // pillar between "gate 2" and "gate 3" — right where the open lane ends and
-    // the closed leaves begin.
     const boomX = startX + OPEN_LEAF_COUNT * leafWidth;
     const boom = composeWorldMatrix(parentPos, rotY, [boomX, 0, 1.4], [1, 1, 1]);
 
@@ -1814,9 +1777,6 @@ for (let i = 0; i < NUM_GATE_LEAVES; i++) {
   const pillarMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: "#6B7280", roughness: 0.6, metalness: 0.4 }), []);
   const pillarCapMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: "#4B5563", roughness: 0.6, metalness: 0.4 }), []);
   const leafFrameMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: "#6B7280", roughness: 0.6, metalness: 0.4 }), []);
-  // Unlit (MeshBasicMaterial) so the panel always reads as gray mesh regardless
-  // of which way it faces the scene lights — this is what was making it look
-  // black before (the backlit side of the leaf was rendering almost unlit).
   const leafMeshMaterial = useMemo(() => new THREE.MeshBasicMaterial({ map: meshTexture, color: "#D1D5DB", transparent: true, opacity: 0.95, side: THREE.DoubleSide }), [meshTexture]);
   const boomCabinetMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: "#F97316", roughness: 0.4, metalness: 0.2 }), []);
   const boomPivotMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: "#374151", roughness: 0.6, metalness: 0.8 }), []);
@@ -1827,9 +1787,6 @@ for (let i = 0; i < NUM_GATE_LEAVES; i++) {
   const roofAccentMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: "#047857", roughness: 0.6 }), []);
   const roofHeight = GATE_HEIGHT + 1.7;
   const roofDepth = 4;
-  // Shifts the whole roof canopy toward the yard (away from the road-facing side)
-  // so it sits back over the gate instead of jutting out in front of it. Flip the
-  // sign here if it ends up shifted the wrong way for your camera framing.
   const roofZOffset = -1.6;
 
   return (
@@ -1837,7 +1794,6 @@ for (let i = 0; i < NUM_GATE_LEAVES; i++) {
       onPointerOver={(e) => { e.stopPropagation(); setHovered(true); document.body.style.cursor = "pointer"; }}
       onPointerOut={(e) => { e.stopPropagation(); setHovered(false); document.body.style.cursor = "auto"; }}
     >
-      {/* Green lattice shed roof, lying flat, set back over the gate rather than out front */}
       <group position={[cx, roofHeight, cz]} rotation={[0, -angle, 0]}>
         <mesh castShadow receiveShadow position={[0, 0, roofZOffset]} rotation={[-Math.PI / 2, 0, 0]} material={roofMaterial}><planeGeometry args={[width + 3.6, roofDepth - 0.3]} /></mesh>
         <mesh position={[0, 0.15, roofZOffset]} material={roofAccentMaterial}><boxGeometry args={[width + 4.2, 0.15, roofDepth + 0.2]} /></mesh>
@@ -1866,17 +1822,12 @@ for (let i = 0; i < NUM_GATE_LEAVES; i++) {
   );
 };
 
-// === Domestic boundary chain-link fencing (green "jaali") ===
-// Runs a green mesh fabric between metal posts along the DOMESTIC_FENCE_COORDS
-// polyline — thicker posts with concrete-look bases, top AND bottom tension
-// wires, and a texture that repeats at a real diamond-cell scale (instead of
-// one huge stretched diamond per segment) so it actually reads as chain-link.
 const domesticFencePostGeo = new THREE.CylinderGeometry(0.055, 0.065, 2.25, 8);
 const domesticFencePostBaseGeo = new THREE.CylinderGeometry(0.14, 0.16, 0.18, 10);
 const domesticFenceTopWireGeo = new THREE.CylinderGeometry(0.018, 0.018, 1, 6);
 const DOMESTIC_FENCE_HEIGHT = 2.1;
 const DOMESTIC_FENCE_POST_SPACING = 3;
-const DOMESTIC_FENCE_CELL_SIZE = 0.35; // real-world size of one diamond cell, for texture repeat
+const DOMESTIC_FENCE_CELL_SIZE = 0.35; 
 
 const DomesticFence3D = ({ center, isDark }) => {
   const { postMatrices, postBaseMatrices, topWireMatrices, bottomWireMatrices, panels } = useMemo(() => {
@@ -1899,8 +1850,6 @@ const DomesticFence3D = ({ center, isDark }) => {
       const numPosts = Math.max(1, Math.round(segLen / DOMESTIC_FENCE_POST_SPACING));
       const postGap = segLen / numPosts;
       for (let p = 0; p <= numPosts; p++) {
-        // Skip the very last post of every segment except the final one, so
-        // shared posts at each bend aren't doubled up.
         if (p === numPosts && i < pts.length - 2) continue;
         const px = p1.x + (dx / segLen) * p * postGap;
         const pz = p1.z + (dz / segLen) * p * postGap;
@@ -1937,9 +1886,6 @@ const DomesticFence3D = ({ center, isDark }) => {
       <InstancedStatic geometry={domesticFenceTopWireGeo} material={postMaterial} matrices={bottomWireMatrices} />
       {panels.map((p, i) => (
         <mesh key={i} geometry={p.geo} position={[p.cx, DOMESTIC_FENCE_HEIGHT / 2, p.cz]} rotation={[0, p.rotY, 0]}>
-          {/* Unlit so the mesh fabric stays an even, correctly-scaled green
-              diamond weave regardless of light direction, and stays properly
-              see-through rather than reading as a flat dark/solid wall. */}
           <meshBasicMaterial map={p.texture} color="#16A34A" transparent opacity={0.72} side={THREE.DoubleSide} />
         </mesh>
       ))}
@@ -2106,30 +2052,25 @@ const CraneField3D = ({ cranes, center, isDark }) => {
   );
 };
 
-// 4 parallel realistic railway lines (Track A, B, C, D) — each with its own gravel bed, wooden
-// sleepers poking out on both sides, and two metal rails on top, like real yard tracks.
 const TRACK_LANES = [
   { label: "A", offset: -6 },
   { label: "B", offset: -2 },
   { label: "C", offset: 2 },
   { label: "D", offset: 6 },
 ];
-const TRACK_GAUGE_HALF = 1.676 / 2; // real standard-gauge half-width
+const TRACK_GAUGE_HALF = 1.676 / 2;
 const TRACK_RAIL_W = 0.15;
 const TRACK_POLE_SPACING = 55;
-const TRACK_SLEEPER_SPACING = 0.65; // dense, real tie spacing
-const TRACK_JOIN_OVERLAP = 0.5; // extra length added at each segment so joints never show a gap
+const TRACK_SLEEPER_SPACING = 0.65; 
+const TRACK_JOIN_OVERLAP = 0.5; 
 
 const railwayBallastGeo = new THREE.BoxGeometry(3.2, 0.35, 1);
 const railwayRailGeo = new THREE.BoxGeometry(TRACK_RAIL_W, 0.14, 1);
-// Wooden sleepers (railway ties) — sit on top of the ballast bed and stick out past the rails on
-// both sides, exactly like the reference photo. This is what reads as "real railway track".
 const railwaySleeperGeo = new THREE.BoxGeometry(2.6, 0.16, 0.22);
 // Trackside signal pole (stands beside the whole corridor, single head)
 const railwaySignalPoleGeo = new THREE.CylinderGeometry(0.06, 0.08, 2.6, 8);
 const railwaySignalBoxGeo = new THREE.BoxGeometry(0.42, 0.85, 0.3);
 const railwaySignalLightGeo = new THREE.CircleGeometry(0.15, 16);
-// Point / switch machine — small trackside box marking where the line can be switched
 const railwayPointMachineGeo = new THREE.BoxGeometry(0.5, 0.3, 0.38);
 const railwayPointLeverGeo = new THREE.BoxGeometry(0.07, 0.32, 0.07);
 
@@ -2142,10 +2083,10 @@ const railwayPointMachineMaterial = new THREE.MeshStandardMaterial({ color: "#DC
 const railwayPointLeverMaterial = new THREE.MeshStandardMaterial({ color: "#FACC15", metalness: 0.4, roughness: 0.5 });
 
 const RAIL_Y = 0.61;      // rails sit on top of the sleepers
-const SLEEPER_Y = 0.43;   // sleepers sit on top of the ballast bed
-const BALLAST_Y = 0.175;  // ballast bed itself
-const SIGNAL_SIDE_X = TRACK_LANES[TRACK_LANES.length - 1].offset + 2.3; // signal pole beside the whole corridor
-const POINT_SIDE_X = TRACK_LANES[0].offset - 2.0; // point/switch machine on the opposite side
+const SLEEPER_Y = 0.43;   
+const BALLAST_Y = 0.175;  
+const SIGNAL_SIDE_X = TRACK_LANES[TRACK_LANES.length - 1].offset + 2.3; 
+const POINT_SIDE_X = TRACK_LANES[0].offset - 2.0; 
 
 const Railway3D = ({ center, isDark }) => {
   const {
