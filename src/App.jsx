@@ -123,7 +123,7 @@ const DOMESTIC_FENCE_COORDS = [
 const CGO_GATE_LANES = [
   [
     [28.509355477586595, 77.28664647916409],
-    [28.509288893385484, 77.28663977364205]  
+    [28.509288893385484, 77.28663977364205]
   ]
 ];
 const CGO_BOOM_BARRIER_COORDS = [
@@ -133,11 +133,11 @@ const CGO_BOOM_BARRIER_COORDS = [
 const CGI_GATE_LANES = [
   [
     [28.513628109980527, 77.28633842854047],
-    [28.51356732118828, 77.28638662530103] 
+    [28.51356732118828, 77.28638662530103]
   ]
 ];
 const CGI_BOOM_BARRIER_COORDS = [
-  { lat: 28.51363246593446, lng: 77.28635825754232, face: "right" } 
+  { lat: 28.51363246593446, lng: 77.28635825754232, face: "right" }
 ];
 
 
@@ -152,7 +152,7 @@ useGLTF.preload("/crane.glb");
 useGLTF.preload("/container_loader.glb");
 useGLTF.preload("/train.glb");
 useGLTF.preload("/train2.glb");
-useGLTF.preload("/wagon.glb");             
+useGLTF.preload("/wagon.glb");
 useGLTF.preload("/cell_tower_skyward.glb");
 
 const TREE_MODELS = [
@@ -1762,9 +1762,9 @@ const TerminalMeshGate3D = ({ center, isDark, label = "Terminal Out-Gate" }) => 
       pillars.push(composeWorldMatrix(parentPos, rotY, [px, PILLAR_HEIGHT / 2, 0], [1, 1, 1]));
       pillarCaps.push(composeWorldMatrix(parentPos, rotY, [px, PILLAR_HEIGHT + 0.07, 0], [1, 1, 1]));
     }
-for (let i = 0; i < NUM_GATE_LEAVES; i++) {
+    for (let i = 0; i < NUM_GATE_LEAVES; i++) {
       const hingeX = startX + i * leafWidth;
-      const isOpen = i === 2; 
+      const isOpen = i === 2;
       leaves.push(composeWorldMatrix(parentPos, rotY, [hingeX, 0, 0], [1, 1, 1], [0, isOpen ? GATE_OPEN_ANGLE : 0, 0]));
     }
 
@@ -1827,7 +1827,7 @@ const domesticFencePostBaseGeo = new THREE.CylinderGeometry(0.14, 0.16, 0.18, 10
 const domesticFenceTopWireGeo = new THREE.CylinderGeometry(0.018, 0.018, 1, 6);
 const DOMESTIC_FENCE_HEIGHT = 2.1;
 const DOMESTIC_FENCE_POST_SPACING = 3;
-const DOMESTIC_FENCE_CELL_SIZE = 0.35; 
+const DOMESTIC_FENCE_CELL_SIZE = 0.35;
 
 const DomesticFence3D = ({ center, isDark }) => {
   const { postMatrices, postBaseMatrices, topWireMatrices, bottomWireMatrices, panels } = useMemo(() => {
@@ -2061,8 +2061,8 @@ const TRACK_LANES = [
 const TRACK_GAUGE_HALF = 1.676 / 2;
 const TRACK_RAIL_W = 0.15;
 const TRACK_POLE_SPACING = 55;
-const TRACK_SLEEPER_SPACING = 0.65; 
-const TRACK_JOIN_OVERLAP = 0.5; 
+const TRACK_SLEEPER_SPACING = 0.65;
+const TRACK_JOIN_OVERLAP = 0.5;
 
 const railwayBallastGeo = new THREE.BoxGeometry(3.2, 0.35, 1);
 const railwayRailGeo = new THREE.BoxGeometry(TRACK_RAIL_W, 0.14, 1);
@@ -2083,10 +2083,10 @@ const railwayPointMachineMaterial = new THREE.MeshStandardMaterial({ color: "#DC
 const railwayPointLeverMaterial = new THREE.MeshStandardMaterial({ color: "#FACC15", metalness: 0.4, roughness: 0.5 });
 
 const RAIL_Y = 0.61;      // rails sit on top of the sleepers
-const SLEEPER_Y = 0.43;   
-const BALLAST_Y = 0.175;  
-const SIGNAL_SIDE_X = TRACK_LANES[TRACK_LANES.length - 1].offset + 2.3; 
-const POINT_SIDE_X = TRACK_LANES[0].offset - 2.0; 
+const SLEEPER_Y = 0.43;
+const BALLAST_Y = 0.175;
+const SIGNAL_SIDE_X = TRACK_LANES[TRACK_LANES.length - 1].offset + 2.3;
+const POINT_SIDE_X = TRACK_LANES[0].offset - 2.0;
 
 const Railway3D = ({ center, isDark }) => {
   const {
@@ -3370,8 +3370,8 @@ function App() {
             engineScale={2} // Agar engine ka size wagon jitna karna hai
             engineRotYOffset={Math.PI / 2} // Engine ko 90 degree rotate karne ke liye (agar tedha chal raha hai to ise change karein -Math.PI / 2 try karein)
             engineForwardOffset={-6}
-            /* engineYOffset ab default 0.4 hai — auto ground-snap ki wajah se engine khud
-               track ki sahi height pe baith jayega, manual guess-check ki zaroorat nahi. */
+          /* engineYOffset ab default 0.4 hai — auto ground-snap ki wajah se engine khud
+             track ki sahi height pe baith jayega, manual guess-check ki zaroorat nahi. */
           />
         </Suspense>
 
