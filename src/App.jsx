@@ -45,7 +45,7 @@ const OUTGATE_POLYGON = [[28.507732029353566, 77.2888193076692], [28.50753346046
 const PARKING_COORDS = [[28.508913326434662, 77.28874674032724], [28.509292656765698, 77.28875681637923], [28.509269676368607, 77.28798769296093], [28.508928505264922, 77.28800848008274], [28.50872698399292, 77.28802926720272], [28.50872698399292, 77.28818751752696], [28.50880240720342, 77.28841215252098], [28.50884247576206, 77.28858984885952]];
 
 const GREENERY_COORDS = [
-  [28.50845790390383, 77.28776841227777], [28.50845246317079, 77.28711093642693], [28.508468912519486, 77.28678841362725], [28.508432379293147, 77.28678573141838], [28.508873091198694, 77.28774949751877], [28.508745814583012, 77.28775620304648], [28.50868689017281, 77.28775754415094], [28.50913471486485, 77.28773474537542], [28.509178318746454, 77.28772669874877], [28.509104074288622, 77.28773340427098], [28.509257277080785, 77.28786349140184], [28.507810249414163, 77.2868081762356], [28.507707720008348, 77.28681219954821], [28.507365339995083, 77.28682358116212], [28.507355987855256, 77.28682022830765], [28.50896276885772, 77.28954984856144], [28.509007590876884, 77.28953760687853], [28.50914743545424, 77.28953046589682], [28.509148331893247, 77.28944579425661], [28.50904882711768, 77.28945293523832], [28.508963665298303, 77.28946823734196]
+  [28.50845790390383, 77.28776841227777], [28.50845246317079, 77.28711093642693], [28.508468912519486, 77.28678841362725], [28.508432379293147, 77.28678573141838], [28.508873091198694, 77.28774949751877], [28.508745814583012, 77.28775620304648], [28.50868689017281, 77.28775754415094], [28.50913471486485, 77.28773474537542], [28.509178318746454, 77.28772669874877], [28.509104074288622, 77.28773340427098], [28.509257277080785, 77.28786349140184], [28.507810249414163, 77.2868081762356], [28.507707720008348, 77.28681219954821], [28.507365339995083, 77.28682358116212], [28.507355987855256, 77.28682022830765], [28.50896276885772, 77.28954984856144], [28.509007590876884, 77.28953760687853], [28.50914743545424, 77.28953046589682], [28.509148331893247, 77.28944579425661], [28.50904882711768, 77.28945293523832], [28.508963665298303, 77.28946823734196],[28.509558071785413, 77.28947346894472],[28.509536859164868, 77.28951504318144],[28.50955630406798, 77.28968134014144],[28.509534502207543, 77.28966055302307]
 ];
 
 const PARKING_WALL_LINES = [
@@ -81,7 +81,7 @@ const WAREHOUSE_DATA = [
 
 const TRACK_COORDS = [
   [28.50798029741757, 77.2861993278382], [28.511441251081667, 77.28608144845934], [28.513226522607233, 77.28598437130985], [28.514676652635337, 77.28588036009819], [28.516528890591463, 77.28581795337986],
-  [28.517899769428844, 77.28680259289459], [28.519014737755104, 77.28747519872812], [28.52097656595973, 77.28848757455816], [28.5227129362258, 77.28815473873708], [28.520793788465724, 77.28893135584076], [28.51889897656675, 77.28863319036364], [28.516778696540648, 77.28838356336682],[28.51356888196852, 77.289624505065]
+  [28.517899769428844, 77.28680259289459], [28.519014737755104, 77.28747519872812], [28.52097656595973, 77.28848757455816], [28.5227129362258, 77.28815473873708], [28.520793788465724, 77.28893135584076], [28.51889897656675, 77.28863319036364], [28.516778696540648, 77.28838356336682], [28.51356888196852, 77.289624505065]
 ];
 
 const IMPORT_BUILDING_POLYGON = [
@@ -226,8 +226,12 @@ const OCR_BOOM_LANE = [
 ];
 const OCR_BOOM_BARRIER_COORDS = [
   { lat: 28.507924475208345, lng: 77.28933458506563, face: "left" },
-  { lat: 28.50787376941233,  lng:  77.28937769306339, face: "left" },
+  { lat: 28.50787376941233, lng: 77.28937769306339, face: "left" },
 ];
+
+
+const GUARD_ROOM_COORDS = { lat: 28.507842974160386, lng: 77.28684990563461 };
+const GUARD_ROOM_SCALE = 1.2; // tweak this to resize (0.2 - 0.5 range is "small")
 
 
 
@@ -238,6 +242,7 @@ useGLTF.preload("/container_loader.glb");
 useGLTF.preload("/train.glb");
 useGLTF.preload("/wagon.glb");
 useGLTF.preload("/cell_tower_skyward.glb");
+useGLTF.preload("/guardRoom.glb");
 
 const TREE_MODELS = [
   "/acacia_tree.glb"
@@ -880,12 +885,12 @@ const GreeneryArea3D = ({ center, isDark }) => {
       {/* Green background mesh yahan se hata diya hai */}
       <Suspense fallback={null}>
         {treePositions.map((t, i) => (
-          <TreeModel 
-            key={i} 
-            url={t.type} 
-            position={[t.x, 0.06, t.z]} 
-            scale={[t.scale, t.scale, t.scale]} 
-            rotation={[0, t.rot, 0]} 
+          <TreeModel
+            key={i}
+            url={t.type}
+            position={[t.x, 0.06, t.z]}
+            scale={[t.scale, t.scale, t.scale]}
+            rotation={[0, t.rot, 0]}
           />
         ))}
       </Suspense>
@@ -1003,7 +1008,7 @@ function createAsphaltTexture(isDark) {
 
 //     const buckets = new Map();
 //     const bucketKey = (bx, bz) => `${bx}_${bz}`;
-    
+
 //     // Coverage reach ko thoda sa bada diya hai taaki koi gap na chute
 //     const EFFECTIVE_MAX_REACH = (typeof ROAD_MAX_REACH !== 'undefined' ? ROAD_MAX_REACH : 35) * 1.3;
 
@@ -1068,7 +1073,7 @@ function createAsphaltTexture(isDark) {
 //           const prev = nearestPerLine.get(seg.lineIdx);
 //           if (prev === undefined || d < prev) nearestPerLine.set(seg.lineIdx, d);
 //         }
-        
+
 //         // Agar single line ke paas bhi hai toh bhi consider karein taaki beech ke holes fill ho jayein
 //         if (nearestPerLine.size < 0) continue;
 
@@ -1076,7 +1081,7 @@ function createAsphaltTexture(isDark) {
 //         nearestPerLine.forEach((d) => {
 //           if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) { d2 = d; }
 //         });
-        
+
 //         const wallClearance = typeof ROAD_WALL_CLEARANCE !== 'undefined' ? ROAD_WALL_CLEARANCE : 1;
 //         if (d1 < wallClearance) continue;
 
@@ -1649,6 +1654,39 @@ const SideGate3D = ({ center, isDark }) => {
   );
 };
 
+
+const GuardRoom3D = ({ center, isDark }) => {
+  const { scene } = useGLTF("/guardRoom.glb");
+  const [hovered, setHovered] = useState(false);
+
+  const lngScale = Math.cos((center.lat * Math.PI) / 180);
+  const x = (GUARD_ROOM_COORDS.lng - center.lng) * LAT_TO_METERS * lngScale;
+  const z = -(GUARD_ROOM_COORDS.lat - center.lat) * LAT_TO_METERS;
+
+  return (
+    <group
+      position={[x, 0, z]}
+      onPointerOver={(e) => { e.stopPropagation(); setHovered(true); document.body.style.cursor = "pointer"; }}
+      onPointerOut={(e) => { e.stopPropagation(); setHovered(false); document.body.style.cursor = "auto"; }}
+    >
+      <Clone
+        object={scene}
+        scale={[GUARD_ROOM_SCALE, GUARD_ROOM_SCALE, GUARD_ROOM_SCALE]}
+        castShadow
+        receiveShadow
+      />
+      {hovered && (
+        <Html position={[0, 3, 0]} center style={{ pointerEvents: "none" }}>
+          <div className={`tooltip-3d ${isDark ? "dark" : "light"}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: "bold", fontSize: "14px", background: "#374151", color: "#fff", border: "2px solid #fff", padding: "8px 14px", borderRadius: "6px", boxShadow: "0 6px 10px rgba(0,0,0,0.4)" }}>
+            <span>🛡️</span> Parking ticket Room
+          </div>
+        </Html>
+      )}
+    </group>
+  );
+};
+
+
 const BoundaryWall3D = ({ center, isDark }) => {
   const segments = useMemo(() => {
     const lngScale = Math.cos((center.lat * Math.PI) / 180);
@@ -1978,7 +2016,7 @@ const TerminalMeshGate3D = ({ center, isDark, label = "Terminal Out-Gate" }) => 
     // (increase/decrease this value to fine-tune the exact position).
     const BOOM_RIGHT_SHIFT = 18.2;
     const boomX = startX + OPEN_LEAF_COUNT * leafWidth + BOOM_RIGHT_SHIFT;
-    const boom = composeWorldMatrix(parentPos, rotY, [boomX, 0 , 3.4], [3, 1, 1]);
+    const boom = composeWorldMatrix(parentPos, rotY, [boomX, 0, 3.4], [3, 1, 1]);
 
     return { pillarM: pillars, pillarCapM: pillarCaps, leafM: leaves, boomMatrix: boom };
   }, [cx, cz, angle, width, leafWidth]);
@@ -2433,7 +2471,7 @@ const Warehouse3D = ({ data, center, isDark }) => {
     const s = new THREE.Shape();
     const lngScale = Math.cos((center.lat * Math.PI) / 180);
     const points2D = [];
-    
+
     data.polygon.forEach((coord, i) => {
       const [lat, lng] = coord;
       const x = (lng - center.lng) * LAT_TO_METERS * lngScale;
@@ -2445,7 +2483,7 @@ const Warehouse3D = ({ data, center, isDark }) => {
 
     let cx = 0, cz = 0;
     points2D.forEach((p) => { cx += p.wx; cz += p.wz; });
-    cx /= points2D.length; 
+    cx /= points2D.length;
     cz /= points2D.length;
 
     const segments = [];
@@ -2498,7 +2536,7 @@ const Warehouse3D = ({ data, center, isDark }) => {
       const rotationY = Math.atan2(seg.nx, seg.nz);
 
       for (let i = 0; i < count; i++) {
-        const t = customT ? customT[i] : (i + 0.5) / count; 
+        const t = customT ? customT[i] : (i + 0.5) / count;
         const x = seg.p1.wx + t * (seg.p2.wx - seg.p1.wx);
         const z = seg.p1.wz + t * (seg.p2.wz - seg.p1.wz);
         const parentPos = [x + seg.nx * depthOffset, 0, z + seg.nz * depthOffset];
@@ -2522,19 +2560,19 @@ const Warehouse3D = ({ data, center, isDark }) => {
     if (isWH1) {
       addGatesAlongSegment(leftSeg, 25, 'Left');
       addGatesAlongSegment(rightSeg, 13, 'Right');
-    } 
+    }
     else if (isWH2) {
       addGatesAlongSegment(leftSeg, 8, 'Left');
       addGatesAlongSegment(rightSeg, 15, 'Right');
-    } 
+    }
     else if (isWH3) {
       addGatesAlongSegment(leftSeg, 4, 'Left');
-    } 
+    }
     else if (isWH4) {
       // Warehouse 4: Top side ke opposite/right portion par 4 gates
       // Aap t values change karke position aur direction adjust kar sakte hain (0.0 se 1.0)
       addGatesAlongSegment(topSeg, 4, 'Top-Left', [0.55, 0.65, 0.75, 0.85]);
-    } 
+    }
     else {
       addGatesAlongSegment(leftSeg, 4, 'Right');
     }
@@ -2546,9 +2584,9 @@ const Warehouse3D = ({ data, center, isDark }) => {
     <group>
       {/* Warehouse Base Mesh */}
       <mesh
-        rotation={[-Math.PI / 2, 0, 0]} 
-        position={[0, 0.05, 0]} 
-        castShadow 
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[0, 0.05, 0]}
+        castShadow
         receiveShadow
         onPointerOver={(e) => { e.stopPropagation(); setHovered(true); document.body.style.cursor = "pointer"; }}
         onPointerOut={(e) => { e.stopPropagation(); setHovered(false); document.body.style.cursor = "auto"; }}
@@ -2559,11 +2597,11 @@ const Warehouse3D = ({ data, center, isDark }) => {
       </mesh>
 
       {/* Shutter Gates with Instance Hover Support */}
-      <InstancedStatic 
-        geometry={shutterFrameGeo} 
-        material={shutterFrameMaterial} 
-        matrices={frameM} 
-        castShadow 
+      <InstancedStatic
+        geometry={shutterFrameGeo}
+        material={shutterFrameMaterial}
+        matrices={frameM}
+        castShadow
         receiveShadow
         onPointerOver={(e) => {
           e.stopPropagation();
@@ -3690,6 +3728,10 @@ function App() {
           <CellTower3D center={center} />
         </Suspense>
 
+        <Suspense fallback={null}>
+          <GuardRoom3D center={center} isDark={isDark} />
+        </Suspense>
+
 
         <Suspense fallback={null}>
           <WagonRake3D
@@ -3701,7 +3743,7 @@ function App() {
             withEngine={true}
             wagonScale={0.12}
             spacing={16}
-            engineScale={2} 
+            engineScale={2}
             engineRotYOffset={Math.PI / 2}
             engineForwardOffset={-6}
           />
