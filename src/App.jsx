@@ -167,6 +167,18 @@ const SMALL_WALL_LINES_2 = [
     [28.508657607213728, 77.28796970150836],
     [28.508672927567808, 77.28801194629729],
     [28.508698265071576, 77.28802938065462]
+  ],
+  [
+    [28.509576744045436, 77.28943053610028],
+    [28.509551012279246, 77.28943471933658],
+    [28.509526015700352, 77.2894506156345],
+    [28.509515722989693, 77.28948240823034],
+    [28.50950776602468, 77.28955153572998],
+    [28.509511890702363, 77.28963602530786],
+    [28.50952249701569, 77.28972185599014],
+    [28.50954429887859, 77.28978757010626],
+    [28.509566689976346, 77.28982914434299],
+    [28.50958849183012, 77.28984724925253]
   ]
 
 ];
@@ -221,14 +233,9 @@ const OCR_BOOM_BARRIER_COORDS = [
 
 
 useGLTF.preload("/acacia_tree.glb");
-useGLTF.preload("/maple_tree.glb");
-useGLTF.preload("/tree_animate.glb");
-useGLTF.preload("/oak_trees.glb");
-useGLTF.preload("/tree_gn.glb");
 useGLTF.preload("/crane.glb");
 useGLTF.preload("/container_loader.glb");
 useGLTF.preload("/train.glb");
-useGLTF.preload("/train2.glb");
 useGLTF.preload("/wagon.glb");
 useGLTF.preload("/cell_tower_skyward.glb");
 
@@ -970,214 +977,214 @@ function createAsphaltTexture(isDark) {
   return texture;
 }
 
-const ParkingRoad3D = ({ center, isDark }) => {
-  const asphaltTexture = useMemo(() => createAsphaltTexture(isDark), [isDark]);
-  const asphaltMaterial = useMemo(
-    () => new THREE.MeshStandardMaterial({ map: asphaltTexture, roughness: 0.95, metalness: 0.05 }),
-    [asphaltTexture]
-  );
+// const ParkingRoad3D = ({ center, isDark }) => {
+//   const asphaltTexture = useMemo(() => createAsphaltTexture(isDark), [isDark]);
+//   const asphaltMaterial = useMemo(
+//     () => new THREE.MeshStandardMaterial({ map: asphaltTexture, roughness: 0.95, metalness: 0.05 }),
+//     [asphaltTexture]
+//   );
 
-  const { roadGeometry, dashMatrices, arrowMatrices } = useMemo(() => {
-    const lngScale = Math.cos((center.lat * Math.PI) / 240);
+//   const { roadGeometry, dashMatrices, arrowMatrices } = useMemo(() => {
+//     const lngScale = Math.cos((center.lat * Math.PI) / 240);
 
-    const segments = [];
-    PARKING_WALL_LINES.forEach((line, lineIdx) => {
-      const pts = line.map((c) => ({
-        x: (c[1] - center.lng) * LAT_TO_METERS * lngScale,
-        z: -(c[0] - center.lat) * LAT_TO_METERS,
-      }));
-      for (let i = 0; i < pts.length - 1; i++) {
-        const p1 = pts[i], p2 = pts[i + 1];
-        if (Math.hypot(p2.x - p1.x, p2.z - p1.z) < 0.02) continue;
-        segments.push({ x1: p1.x, z1: p1.z, x2: p2.x, z2: p2.z, lineIdx });
-      }
-    });
-    if (!segments.length) return { roadGeometry: null, dashMatrices: [], arrowMatrices: [] };
+//     const segments = [];
+//     PARKING_WALL_LINES.forEach((line, lineIdx) => {
+//       const pts = line.map((c) => ({
+//         x: (c[1] - center.lng) * LAT_TO_METERS * lngScale,
+//         z: -(c[0] - center.lat) * LAT_TO_METERS,
+//       }));
+//       for (let i = 0; i < pts.length - 1; i++) {
+//         const p1 = pts[i], p2 = pts[i + 1];
+//         if (Math.hypot(p2.x - p1.x, p2.z - p1.z) < 0.02) continue;
+//         segments.push({ x1: p1.x, z1: p1.z, x2: p2.x, z2: p2.z, lineIdx });
+//       }
+//     });
+//     if (!segments.length) return { roadGeometry: null, dashMatrices: [], arrowMatrices: [] };
 
-    const buckets = new Map();
-    const bucketKey = (bx, bz) => `${bx}_${bz}`;
+//     const buckets = new Map();
+//     const bucketKey = (bx, bz) => `${bx}_${bz}`;
     
-    // Coverage reach ko thoda sa bada diya hai taaki koi gap na chute
-    const EFFECTIVE_MAX_REACH = (typeof ROAD_MAX_REACH !== 'undefined' ? ROAD_MAX_REACH : 35) * 1.3;
+//     // Coverage reach ko thoda sa bada diya hai taaki koi gap na chute
+//     const EFFECTIVE_MAX_REACH = (typeof ROAD_MAX_REACH !== 'undefined' ? ROAD_MAX_REACH : 35) * 1.3;
 
-    segments.forEach((seg, idx) => {
-      const minX = Math.min(seg.x1, seg.x2) - EFFECTIVE_MAX_REACH;
-      const maxX = Math.max(seg.x1, seg.x2) + EFFECTIVE_MAX_REACH;
-      const minZ = Math.min(seg.z1, seg.z2) - EFFECTIVE_MAX_REACH;
-      const maxZ = Math.max(seg.z1, seg.z2) + EFFECTIVE_MAX_REACH;
-      const bx0 = Math.floor(minX / ROAD_BUCKET), bx1 = Math.floor(maxX / ROAD_BUCKET);
-      const bz0 = Math.floor(minZ / ROAD_BUCKET), bz1 = Math.floor(maxZ / ROAD_BUCKET);
-      for (let bx = bx0; bx <= bx1; bx++) {
-        for (let bz = bz0; bz <= bz1; bz++) {
-          const key = bucketKey(bx, bz);
-          if (!buckets.has(key)) buckets.set(key, []);
-          buckets.get(key).push(idx);
-        }
-      }
-    });
+//     segments.forEach((seg, idx) => {
+//       const minX = Math.min(seg.x1, seg.x2) - EFFECTIVE_MAX_REACH;
+//       const maxX = Math.max(seg.x1, seg.x2) + EFFECTIVE_MAX_REACH;
+//       const minZ = Math.min(seg.z1, seg.z2) - EFFECTIVE_MAX_REACH;
+//       const maxZ = Math.max(seg.z1, seg.z2) + EFFECTIVE_MAX_REACH;
+//       const bx0 = Math.floor(minX / ROAD_BUCKET), bx1 = Math.floor(maxX / ROAD_BUCKET);
+//       const bz0 = Math.floor(minZ / ROAD_BUCKET), bz1 = Math.floor(maxZ / ROAD_BUCKET);
+//       for (let bx = bx0; bx <= bx1; bx++) {
+//         for (let bz = bz0; bz <= bz1; bz++) {
+//           const key = bucketKey(bx, bz);
+//           if (!buckets.has(key)) buckets.set(key, []);
+//           buckets.get(key).push(idx);
+//         }
+//       }
+//     });
 
-    const parkingPts = PARKING_COORDS.map((c) => [
-      (c[1] - center.lng) * LAT_TO_METERS * lngScale,
-      -(c[0] - center.lat) * LAT_TO_METERS,
-    ]);
+//     const parkingPts = PARKING_COORDS.map((c) => [
+//       (c[1] - center.lng) * LAT_TO_METERS * lngScale,
+//       -(c[0] - center.lat) * LAT_TO_METERS,
+//     ]);
 
-    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-    segments.forEach((s) => {
-      minX = Math.min(minX, s.x1, s.x2); maxX = Math.max(maxX, s.x1, s.x2);
-      minZ = Math.min(minZ, s.z1, s.z2); maxZ = Math.max(maxZ, s.z1, s.z2);
-    });
-    parkingPts.forEach(([x, z]) => {
-      minX = Math.min(minX, x); maxX = Math.max(maxX, x);
-      minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
-    });
+//     let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+//     segments.forEach((s) => {
+//       minX = Math.min(minX, s.x1, s.x2); maxX = Math.max(maxX, s.x1, s.x2);
+//       minZ = Math.min(minZ, s.z1, s.z2); maxZ = Math.max(maxZ, s.z1, s.z2);
+//     });
+//     parkingPts.forEach(([x, z]) => {
+//       minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+//       minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
+//     });
 
-    const cols = Math.ceil((maxX - minX) / ROAD_GRID_STEP) + 1;
-    const rows = Math.ceil((maxZ - minZ) / ROAD_GRID_STEP) + 1;
-    const distGrid = new Float32Array(cols * rows).fill(-1);
-    const laneMask = new Uint8Array(cols * rows);
-    const roadMask = new Uint8Array(cols * rows);
+//     const cols = Math.ceil((maxX - minX) / ROAD_GRID_STEP) + 1;
+//     const rows = Math.ceil((maxZ - minZ) / ROAD_GRID_STEP) + 1;
+//     const distGrid = new Float32Array(cols * rows).fill(-1);
+//     const laneMask = new Uint8Array(cols * rows);
+//     const roadMask = new Uint8Array(cols * rows);
 
-    const nearestPerLine = new Map();
-    for (let iz = 0; iz < rows; iz++) {
-      const pz = minZ + iz * ROAD_GRID_STEP;
-      const bz = Math.floor(pz / ROAD_BUCKET);
-      for (let ix = 0; ix < cols; ix++) {
-        const px = minX + ix * ROAD_GRID_STEP;
-        const idx2d = iz * cols + ix;
+//     const nearestPerLine = new Map();
+//     for (let iz = 0; iz < rows; iz++) {
+//       const pz = minZ + iz * ROAD_GRID_STEP;
+//       const bz = Math.floor(pz / ROAD_BUCKET);
+//       for (let ix = 0; ix < cols; ix++) {
+//         const px = minX + ix * ROAD_GRID_STEP;
+//         const idx2d = iz * cols + ix;
 
-        if (isPointInPolygon([px, pz], parkingPts)) {
-          roadMask[idx2d] = 1;
-        }
+//         if (isPointInPolygon([px, pz], parkingPts)) {
+//           roadMask[idx2d] = 1;
+//         }
 
-        const bx = Math.floor(px / ROAD_BUCKET);
-        const cand = buckets.get(bucketKey(bx, bz));
-        if (!cand) continue;
+//         const bx = Math.floor(px / ROAD_BUCKET);
+//         const cand = buckets.get(bucketKey(bx, bz));
+//         if (!cand) continue;
 
-        nearestPerLine.clear();
-        for (let k = 0; k < cand.length; k++) {
-          const seg = segments[cand[k]];
-          const d = pointSegDist(px, pz, seg.x1, seg.z1, seg.x2, seg.z2);
-          if (d > EFFECTIVE_MAX_REACH) continue;
-          const prev = nearestPerLine.get(seg.lineIdx);
-          if (prev === undefined || d < prev) nearestPerLine.set(seg.lineIdx, d);
-        }
+//         nearestPerLine.clear();
+//         for (let k = 0; k < cand.length; k++) {
+//           const seg = segments[cand[k]];
+//           const d = pointSegDist(px, pz, seg.x1, seg.z1, seg.x2, seg.z2);
+//           if (d > EFFECTIVE_MAX_REACH) continue;
+//           const prev = nearestPerLine.get(seg.lineIdx);
+//           if (prev === undefined || d < prev) nearestPerLine.set(seg.lineIdx, d);
+//         }
         
-        // Agar single line ke paas bhi hai toh bhi consider karein taaki beech ke holes fill ho jayein
-        if (nearestPerLine.size < 1) continue;
+//         // Agar single line ke paas bhi hai toh bhi consider karein taaki beech ke holes fill ho jayein
+//         if (nearestPerLine.size < 0) continue;
 
-        let d1 = Infinity, d2 = Infinity;
-        nearestPerLine.forEach((d) => {
-          if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) { d2 = d; }
-        });
+//         let d1 = Infinity, d2 = Infinity;
+//         nearestPerLine.forEach((d) => {
+//           if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) { d2 = d; }
+//         });
         
-        const wallClearance = typeof ROAD_WALL_CLEARANCE !== 'undefined' ? ROAD_WALL_CLEARANCE : 1;
-        if (d1 < wallClearance) continue;
+//         const wallClearance = typeof ROAD_WALL_CLEARANCE !== 'undefined' ? ROAD_WALL_CLEARANCE : 1;
+//         if (d1 < wallClearance) continue;
 
-        distGrid[idx2d] = d1;
-        laneMask[idx2d] = 1;
-        roadMask[idx2d] = 1;
-      }
-    }
+//         distGrid[idx2d] = d1;
+//         laneMask[idx2d] = 1;
+//         roadMask[idx2d] = 1;
+//       }
+//     }
 
-    // Hole fill iterations ko yahan bada diya hai taaki saare beech ke white patches khatam ho jayein
-    const fillIterations = (typeof ROAD_HOLE_FILL_ITERATIONS !== 'undefined' ? ROAD_HOLE_FILL_ITERATIONS : 5) + 10;
-    const closedMask = morphClose(roadMask, cols, rows, fillIterations);
+//     // Hole fill iterations ko yahan bada diya hai taaki saare beech ke white patches khatam ho jayein
+//     const fillIterations = (typeof ROAD_HOLE_FILL_ITERATIONS !== 'undefined' ? ROAD_HOLE_FILL_ITERATIONS : 5) + 10;
+//     const closedMask = morphClose(roadMask, cols, rows, fillIterations);
 
-    const positions = [];
-    const indices = [];
-    const isRoad = (ix, iz) => ix >= 0 && ix < cols && iz >= 0 && iz < rows && closedMask[iz * cols + ix] === 1;
-    const vIndex = new Int32Array(cols * rows).fill(-1);
-    let vCount = 0;
-    for (let iz = 0; iz < rows; iz++) {
-      for (let ix = 0; ix < cols; ix++) {
-        if (!isRoad(ix, iz)) continue;
-        const px = minX + ix * ROAD_GRID_STEP;
-        const pz = minZ + iz * ROAD_GRID_STEP;
-        positions.push(px, 0, pz);
-        vIndex[iz * cols + ix] = vCount++;
-      }
-    }
-    for (let iz = 0; iz < rows - 1; iz++) {
-      for (let ix = 0; ix < cols - 1; ix++) {
-        const a = vIndex[iz * cols + ix];
-        const b = vIndex[iz * cols + ix + 1];
-        const c = vIndex[(iz + 1) * cols + ix];
-        const d = vIndex[(iz + 1) * cols + ix + 1];
-        if (a >= 0 && b >= 0 && c >= 0) indices.push(a, c, b);
-        if (b >= 0 && c >= 0 && d >= 0) indices.push(b, c, d);
-      }
-    }
+//     const positions = [];
+//     const indices = [];
+//     const isRoad = (ix, iz) => ix >= 0 && ix < cols && iz >= 0 && iz < rows && closedMask[iz * cols + ix] === 1;
+//     const vIndex = new Int32Array(cols * rows).fill(-1);
+//     let vCount = 0;
+//     for (let iz = 0; iz < rows; iz++) {
+//       for (let ix = 0; ix < cols; ix++) {
+//         if (!isRoad(ix, iz)) continue;
+//         const px = minX + ix * ROAD_GRID_STEP;
+//         const pz = minZ + iz * ROAD_GRID_STEP;
+//         positions.push(px, 0, pz);
+//         vIndex[iz * cols + ix] = vCount++;
+//       }
+//     }
+//     for (let iz = 0; iz < rows - 1; iz++) {
+//       for (let ix = 0; ix < cols - 1; ix++) {
+//         const a = vIndex[iz * cols + ix];
+//         const b = vIndex[iz * cols + ix + 1];
+//         const c = vIndex[(iz + 1) * cols + ix];
+//         const d = vIndex[(iz + 1) * cols + ix + 1];
+//         if (a >= 0 && b >= 0 && c >= 0) indices.push(a, c, b);
+//         if (b >= 0 && c >= 0 && d >= 0) indices.push(b, c, d);
+//       }
+//     }
 
-    let roadGeo = null;
-    if (positions.length) {
-      roadGeo = new THREE.BufferGeometry();
-      roadGeo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-      const uvs = new Float32Array((positions.length / 3) * 2);
-      for (let i = 0; i < positions.length / 3; i++) {
-        uvs[i * 2] = positions[i * 3] / 2;
-        uvs[i * 2 + 1] = positions[i * 3 + 2] / 2;
-      }
-      roadGeo.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
-      roadGeo.setIndex(indices);
-      roadGeo.computeVertexNormals();
-    }
+//     let roadGeo = null;
+//     if (positions.length) {
+//       roadGeo = new THREE.BufferGeometry();
+//       roadGeo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+//       const uvs = new Float32Array((positions.length / 3) * 2);
+//       for (let i = 0; i < positions.length / 3; i++) {
+//         uvs[i * 2] = positions[i * 3] / 2;
+//         uvs[i * 2 + 1] = positions[i * 3 + 2] / 2;
+//       }
+//       roadGeo.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
+//       roadGeo.setIndex(indices);
+//       roadGeo.computeVertexNormals();
+//     }
 
-    const dashM = [];
-    const arrowCandidates = [];
-    const isLane = (ix, iz) => ix >= 0 && ix < cols && iz >= 0 && iz < rows && laneMask[iz * cols + ix] === 1;
-    for (let iz = 0; iz < rows; iz++) {
-      for (let ix = 0; ix < cols; ix++) {
-        if (!isLane(ix, iz)) continue;
-        const d0 = distGrid[iz * cols + ix];
-        const px = minX + ix * ROAD_GRID_STEP;
-        const pz = minZ + iz * ROAD_GRID_STEP;
+//     const dashM = [];
+//     const arrowCandidates = [];
+//     const isLane = (ix, iz) => ix >= 0 && ix < cols && iz >= 0 && iz < rows && laneMask[iz * cols + ix] === 1;
+//     for (let iz = 0; iz < rows; iz++) {
+//       for (let ix = 0; ix < cols; ix++) {
+//         if (!isLane(ix, iz)) continue;
+//         const d0 = distGrid[iz * cols + ix];
+//         const px = minX + ix * ROAD_GRID_STEP;
+//         const pz = minZ + iz * ROAD_GRID_STEP;
 
-        const dLeft = isLane(ix - 1, iz) ? distGrid[iz * cols + ix - 1] : -1;
-        const dRight = isLane(ix + 1, iz) ? distGrid[iz * cols + ix + 1] : -1;
-        const dDown = isLane(ix, iz - 1) ? distGrid[(iz - 1) * cols + ix] : -1;
-        const dUp = isLane(ix, iz + 1) ? distGrid[(iz + 1) * cols + ix] : -1;
+//         const dLeft = isLane(ix - 1, iz) ? distGrid[iz * cols + ix - 1] : -1;
+//         const dRight = isLane(ix + 1, iz) ? distGrid[iz * cols + ix + 1] : -1;
+//         const dDown = isLane(ix, iz - 1) ? distGrid[(iz - 1) * cols + ix] : -1;
+//         const dUp = isLane(ix, iz + 1) ? distGrid[(iz + 1) * cols + ix] : -1;
 
-        const isLocalMax = d0 >= dLeft && d0 >= dRight && d0 >= dDown && d0 >= dUp;
-        if (!isLocalMax) continue;
-        if ((ix + iz) % 3 === 0) {
-          dashM.push(composeWorldMatrix([px, 0.03, pz], 0, [0, 0, 0], [1, 1, 1]));
-        }
+//         const isLocalMax = d0 >= dLeft && d0 >= dRight && d0 >= dDown && d0 >= dUp;
+//         if (!isLocalMax) continue;
+//         if ((ix + iz) % 3 === 0) {
+//           dashM.push(composeWorldMatrix([px, 0.03, pz], 0, [0, 0, 0], [1, 1, 1]));
+//         }
 
-        const gx = (dRight >= 0 ? dRight : d0) - (dLeft >= 0 ? dLeft : d0);
-        const gz = (dUp >= 0 ? dUp : d0) - (dDown >= 0 ? dDown : d0);
-        const glen = Math.hypot(gx, gz);
-        if (glen < 1e-4) continue;
-        const dirX = -gz / glen, dirZ = gx / glen;
-        arrowCandidates.push({ px, pz, angle: Math.atan2(dirZ, dirX) });
-      }
-    }
+//         const gx = (dRight >= 0 ? dRight : d0) - (dLeft >= 0 ? dLeft : d0);
+//         const gz = (dUp >= 0 ? dUp : d0) - (dDown >= 0 ? dDown : d0);
+//         const glen = Math.hypot(gx, gz);
+//         if (glen < 1e-4) continue;
+//         const dirX = -gz / glen, dirZ = gx / glen;
+//         arrowCandidates.push({ px, pz, angle: Math.atan2(dirZ, dirX) });
+//       }
+//     }
 
-    const ARROW_SPACING = 8.5;
-    const ARROW_SPACING_SQ = ARROW_SPACING * ARROW_SPACING;
-    const placedArrows = [];
-    for (let i = 0; i < arrowCandidates.length; i++) {
-      const cand = arrowCandidates[i];
-      let tooClose = false;
-      for (let j = 0; j < placedArrows.length; j++) {
-        const dx = placedArrows[j].px - cand.px, dz = placedArrows[j].pz - cand.pz;
-        if (dx * dx + dz * dz < ARROW_SPACING_SQ) { tooClose = true; break; }
-      }
-      if (!tooClose) placedArrows.push(cand);
-    }
-    const arrowM = placedArrows.map((a) => composeWorldMatrix([a.px, 0.032, a.pz], -a.angle, [0, 0, 0], [1, 1, 1]));
+//     const ARROW_SPACING = 8.5;
+//     const ARROW_SPACING_SQ = ARROW_SPACING * ARROW_SPACING;
+//     const placedArrows = [];
+//     for (let i = 0; i < arrowCandidates.length; i++) {
+//       const cand = arrowCandidates[i];
+//       let tooClose = false;
+//       for (let j = 0; j < placedArrows.length; j++) {
+//         const dx = placedArrows[j].px - cand.px, dz = placedArrows[j].pz - cand.pz;
+//         if (dx * dx + dz * dz < ARROW_SPACING_SQ) { tooClose = true; break; }
+//       }
+//       if (!tooClose) placedArrows.push(cand);
+//     }
+//     const arrowM = placedArrows.map((a) => composeWorldMatrix([a.px, 0.032, a.pz], -a.angle, [0, 0, 0], [1, 1, 1]));
 
-    return { roadGeometry: roadGeo, dashMatrices: dashM, arrowMatrices: arrowM };
-  }, [center]);
+//     return { roadGeometry: roadGeo, dashMatrices: dashM, arrowMatrices: arrowM };
+//   }, [center]);
 
-  if (!roadGeometry) return null;
+//   if (!roadGeometry) return null;
 
-  return (
-    <group>
-      <mesh geometry={roadGeometry} material={asphaltMaterial} receiveShadow position={[0, 0.016, 0]} />
-      <InstancedStatic geometry={roadArrowGeo} material={roadArrowMaterial} matrices={arrowMatrices} />
-    </group>
-  );
-};
+//   return (
+//     <group>
+//       <mesh geometry={roadGeometry} material={asphaltMaterial} receiveShadow position={[0, 0.016, 0]} />
+//       <InstancedStatic geometry={roadArrowGeo} material={roadArrowMaterial} matrices={arrowMatrices} />
+//     </group>
+//   );
+// };
 
 const smallWallSkinGeo = new THREE.BoxGeometry(1, 0.8, 0.3);
 const smallWallPostGeo = new THREE.BoxGeometry(0.2, 1.2, 0.2);
@@ -3477,10 +3484,6 @@ function App() {
       result.push({ ...container, x, y, z, angle, is40, lenScale });
     });
 
-    // === EMPTY-SLOT GRAY FILL ===
-    // Har physical column (ek fixed x,z jagah jahan containers stack hote hain) ke liye check karo:
-    // agar us column mein koi upar wala stack level occupied hai lekin uske neeche ke levels khali
-    // hain, to unn khali levels par ek gray "empty" placeholder container daal do.
     const columnMap = new Map();
     const HEIGHT = 2.6;
     result.forEach((c) => {
@@ -3621,33 +3624,24 @@ function App() {
 
         <MapControls ref={controlsRef} target={[-120, 0, 150]} enableDamping={true} dampingFactor={0.05} maxPolarAngle={Math.PI / 2 - 0.05} minDistance={20} maxDistance={1500} />
         <PanBoundsClamp controlsRef={controlsRef} />
-
-        {/* === AUTOMATION GATE === */}
         <AutomationGate3D center={center} isDark={isDark} />
 
-        {/* === CGO GANTRY + BOOM BARRIER (added at user request) === */}
         <AutomationGate3D center={center} isDark={isDark} lanes={CGO_GATE_LANES} label="CGO Gantry" stripedPoles />
         <BoomBarrier3D center={center} isDark={isDark} coords={CGO_BOOM_BARRIER_COORDS} label="CGO Boom Barrier" lane={CGO_GATE_LANES[0]} />
 
-        {/* === CGI GANTRY + BOOM BARRIER (added at user request) === */}
         <AutomationGate3D center={center} isDark={isDark} lanes={CGI_GATE_LANES} label="CGI Gantry" stripedPoles />
         <BoomBarrier3D center={center} isDark={isDark} coords={CGI_BOOM_BARRIER_COORDS} label="CGI Boom Barrier" lane={CGI_GATE_LANES[0]} />
-
-        {/* === OCR GATE (orange pole gantry across 3 points, 2 back-to-back segments) === */}
         <AutomationGate3D center={center} isDark={isDark} lanes={OCR_GATE_LANES} label="OCR Gate" poleColor="#F97316" />
         <BoomBarrier3D center={center} isDark={isDark} coords={OCR_BOOM_BARRIER_COORDS} label="OCR Boom Barrier" lane={OCR_BOOM_LANE} />
 
-        {/* === NEW REALISTIC QR CODE SCANNERS === */}
         <QRCodeScanner3D center={center} isDark={isDark} />
 
-        {/* === NEW REALISTIC BOOM BARRIERS === */}
         <BoomBarrier3D center={center} isDark={isDark} />
 
         <Suspense fallback={null}>
           <FlagMemorial3D center={center} isDark={isDark} />
         </Suspense>
 
-        <ParkingRoad3D center={center} isDark={isDark} />
         <ParkingWall3D center={center} isDark={isDark} />
         <SmallYellowBlackWall3D center={center} isDark={isDark} />
         <SmallYellowBlackWall3D center={center} isDark={isDark} lines={SMALL_WALL_LINES_2} />
@@ -3679,7 +3673,6 @@ function App() {
         <ReachStackerField3D machines={equipment} center={center} isDark={isDark} />
         <Railway3D center={center} isDark={isDark} />
 
-        {/* ---- NEW: Cell Tower ---- */}
         <Suspense fallback={null}>
           <CellTower3D center={center} />
         </Suspense>
@@ -3695,16 +3688,12 @@ function App() {
             withEngine={true}
             wagonScale={0.12}
             spacing={16}
-            engineScale={2} // Agar engine ka size wagon jitna karna hai
-            engineRotYOffset={Math.PI / 2} // Engine ko 90 degree rotate karne ke liye (agar tedha chal raha hai to ise change karein -Math.PI / 2 try karein)
+            engineScale={2} 
+            engineRotYOffset={Math.PI / 2}
             engineForwardOffset={-6}
-          /* engineYOffset ab default 0.4 hai — auto ground-snap ki wajah se engine khud
-             track ki sahi height pe baith jayega, manual guess-check ki zaroorat nahi. */
           />
         </Suspense>
 
-
-        {/* TRAIN 2 — engine (train2.glb) + 10 wagons at 28.509669, 77.286292 */}
         <Suspense fallback={null}>
           <WagonRake3D
             center={center}
@@ -3718,17 +3707,6 @@ function App() {
             engineScale={3}
             engineRotYOffset={Math.PI / 2}
             engineForwardOffset={-16}
-            /* engineYOffset ab default 0.4 hai — auto ground-snap ki wajah se engine khud
-               track ki sahi height pe baith jayega, manual guess-check ki zaroorat nahi. */
-            /* === SIRF ENGINE KO LEFT/RIGHT SHIFT KARNE WALI LINES ===
-               Do tareeke diye hain — jo bhi kaam kare wahi use karo, doosre ko 0 rakho.
-
-               TAREEKA 1 (track-relative, agar track seedha ho to ye sahi "right" hoga):
-               engineRightShift={10}   // negative karne se doosri taraf jayega
-
-               TAREEKA 2 (DIRECT world-axis, track angle ignore karta hai — agar tareeka 1
-               confusing lage to isse try karo, aur value 5/10/20/-10 karke dekho):
-            */
             engineRightShift={0}
             engineWorldXShift={-12}
             engineWorldZShift={0}
