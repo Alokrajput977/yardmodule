@@ -3484,6 +3484,10 @@ function App() {
       result.push({ ...container, x, y, z, angle, is40, lenScale });
     });
 
+    // === EMPTY-SLOT GRAY FILL ===
+    // Har physical column (ek fixed x,z jagah jahan containers stack hote hain) ke liye check karo:
+    // agar us column mein koi upar wala stack level occupied hai lekin uske neeche ke levels khali
+    // hain, to unn khali levels par ek gray "empty" placeholder container daal do.
     const columnMap = new Map();
     const HEIGHT = 2.6;
     result.forEach((c) => {
@@ -3624,24 +3628,33 @@ function App() {
 
         <MapControls ref={controlsRef} target={[-120, 0, 150]} enableDamping={true} dampingFactor={0.05} maxPolarAngle={Math.PI / 2 - 0.05} minDistance={20} maxDistance={1500} />
         <PanBoundsClamp controlsRef={controlsRef} />
+
+        {/* === AUTOMATION GATE === */}
         <AutomationGate3D center={center} isDark={isDark} />
 
+        {/* === CGO GANTRY + BOOM BARRIER (added at user request) === */}
         <AutomationGate3D center={center} isDark={isDark} lanes={CGO_GATE_LANES} label="CGO Gantry" stripedPoles />
         <BoomBarrier3D center={center} isDark={isDark} coords={CGO_BOOM_BARRIER_COORDS} label="CGO Boom Barrier" lane={CGO_GATE_LANES[0]} />
 
+        {/* === CGI GANTRY + BOOM BARRIER (added at user request) === */}
         <AutomationGate3D center={center} isDark={isDark} lanes={CGI_GATE_LANES} label="CGI Gantry" stripedPoles />
         <BoomBarrier3D center={center} isDark={isDark} coords={CGI_BOOM_BARRIER_COORDS} label="CGI Boom Barrier" lane={CGI_GATE_LANES[0]} />
+
+        {/* === OCR GATE (orange pole gantry across 3 points, 2 back-to-back segments) === */}
         <AutomationGate3D center={center} isDark={isDark} lanes={OCR_GATE_LANES} label="OCR Gate" poleColor="#F97316" />
         <BoomBarrier3D center={center} isDark={isDark} coords={OCR_BOOM_BARRIER_COORDS} label="OCR Boom Barrier" lane={OCR_BOOM_LANE} />
 
+        {/* === NEW REALISTIC QR CODE SCANNERS === */}
         <QRCodeScanner3D center={center} isDark={isDark} />
 
+        {/* === NEW REALISTIC BOOM BARRIERS === */}
         <BoomBarrier3D center={center} isDark={isDark} />
 
         <Suspense fallback={null}>
           <FlagMemorial3D center={center} isDark={isDark} />
         </Suspense>
 
+        {/* <ParkingRoad3D center={center} isDark={isDark} /> */}
         <ParkingWall3D center={center} isDark={isDark} />
         <SmallYellowBlackWall3D center={center} isDark={isDark} />
         <SmallYellowBlackWall3D center={center} isDark={isDark} lines={SMALL_WALL_LINES_2} />
