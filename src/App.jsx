@@ -149,6 +149,26 @@ const SMALL_WALL_LINES_2 = [
     [28.507889686422867, 77.2894601773951],
     [28.507866893764103, 77.28937826935413],
   ],
+  [
+    [28.508614592359354, 77.28774104319079],
+    [28.508601628975807, 77.28759553336224],
+    [28.508612235380628, 77.28757474624386],
+    [28.5086269664967, 77.28756938182623]
+  ],
+  [
+    [28.508622841784412, 77.28769343398422],
+    [28.508727138031375, 77.28768337570115],
+    [28.50883850509648, 77.28767063520924],
+    [28.508832612662125, 77.28749830329247]
+  ],
+  [
+    [28.508635215923, 77.28781949781437],
+    [28.508645822324468, 77.2878858824827],
+    [28.508657607213728, 77.28796970150836],
+    [28.508672927567808, 77.28801194629729],
+    [28.508698265071576, 77.28802938065462]
+  ]
+
 ];
 
 const CGO_GATE_LANES = [
@@ -833,42 +853,33 @@ const TreeModel = ({ url, position, scale, rotation }) => {
 };
 
 const GreeneryArea3D = ({ center, isDark }) => {
-  const { shape, treePositions } = useMemo(() => {
+  const treePositions = useMemo(() => {
     const lngScale = Math.cos((center.lat * Math.PI) / 180);
     const pts = GREENERY_COORDS.map(c => [
       (c[1] - center.lng) * LAT_TO_METERS * lngScale,
       -(c[0] - center.lat) * LAT_TO_METERS
     ]);
 
-    const s = new THREE.Shape();
-    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-
-    pts.forEach(([x, z], i) => {
-      if (i === 0) s.moveTo(x, z); else s.lineTo(x, z);
-      if (x < minX) minX = x; if (x > maxX) maxX = x;
-      if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
-    });
-    s.closePath();
-
-    const positions = pts.map(([x, z]) => ({
+    return pts.map(([x, z]) => ({
       x, z,
       type: TREE_MODELS[Math.floor(Math.random() * TREE_MODELS.length)],
       scale: 2,
       rot: Math.random() * Math.PI * 2
     }));
-
-    return { shape: s, treePositions: positions };
   }, [center]);
 
   return (
     <group>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.06, 0]} receiveShadow>
-        <shapeGeometry args={[shape]} />
-        <meshStandardMaterial color={isDark ? "#14532d" : "#4ade80"} roughness={0.9} />
-      </mesh>
+      {/* Green background mesh yahan se hata diya hai */}
       <Suspense fallback={null}>
         {treePositions.map((t, i) => (
-          <TreeModel key={i} url={t.type} position={[t.x, 0.06, t.z]} scale={[t.scale, t.scale, t.scale]} rotation={[0, t.rot, 0]} />
+          <TreeModel 
+            key={i} 
+            url={t.type} 
+            position={[t.x, 0.06, t.z]} 
+            scale={[t.scale, t.scale, t.scale]} 
+            rotation={[0, t.rot, 0]} 
+          />
         ))}
       </Suspense>
     </group>
@@ -1949,9 +1960,9 @@ const TerminalMeshGate3D = ({ center, isDark, label = "Terminal Out-Gate" }) => 
 
     // BOOM_RIGHT_SHIFT: shifts the out-gate boom barrier further right along the gate
     // (increase/decrease this value to fine-tune the exact position).
-    const BOOM_RIGHT_SHIFT = 3.2;
+    const BOOM_RIGHT_SHIFT = 18.2;
     const boomX = startX + OPEN_LEAF_COUNT * leafWidth + BOOM_RIGHT_SHIFT;
-    const boom = composeWorldMatrix(parentPos, rotY, [boomX, 0, 1.4], [1, 1, 1]);
+    const boom = composeWorldMatrix(parentPos, rotY, [boomX, 0 , 3.4], [3, 1, 1]);
 
     return { pillarM: pillars, pillarCapM: pillarCaps, leafM: leaves, boomMatrix: boom };
   }, [cx, cz, angle, width, leafWidth]);
