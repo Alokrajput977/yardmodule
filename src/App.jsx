@@ -2419,10 +2419,14 @@ const shutterExtraBoxMaterial = new THREE.MeshStandardMaterial({ color: "#4B5563
 
 const Warehouse3D = ({ data, center, isDark }) => {
   const [hovered, setHovered] = useState(false);
+  const [hoveredGateIndex, setHoveredGateIndex] = useState(null);
+
+  // 1. Polygon shape and wall segments calculation
   const { shape, wallSegments } = useMemo(() => {
     const s = new THREE.Shape();
     const lngScale = Math.cos((center.lat * Math.PI) / 180);
     const points2D = [];
+    
     data.polygon.forEach((coord, i) => {
       const [lat, lng] = coord;
       const x = (lng - center.lng) * LAT_TO_METERS * lngScale;
@@ -2431,9 +2435,12 @@ const Warehouse3D = ({ data, center, isDark }) => {
       else s.lineTo(x, y);
       points2D.push({ wx: x, wz: -y });
     });
+
     let cx = 0, cz = 0;
     points2D.forEach((p) => { cx += p.wx; cz += p.wz; });
-    cx /= points2D.length; cz /= points2D.length;
+    cx /= points2D.length; 
+    cz /= points2D.length;
+
     const segments = [];
     for (let i = 0; i < points2D.length - 1; i++) {
       const p1 = points2D[i];
@@ -2445,42 +2452,97 @@ const Warehouse3D = ({ data, center, isDark }) => {
       const midZ = (p1.wz + p2.wz) / 2;
       let nx = dz / len, nz = -dx / len;
       if (nx * (midX - cx) + nz * (midZ - cz) < 0) { nx = -nx; nz = -nz; }
-      segments.push({ midX, midZ, nx, nz, len });
+      segments.push({ p1, p2, midX, midZ, nx, nz, len });
     }
     return { shape: s, wallSegments: segments };
   }, [data, center]);
 
-  const { frameM, handleM, hingeM, extraBoxM } = useMemo(() => {
-    const frame = [], handle = [], hinge = [], extraBox = [];
-    const depthOffset = 0.15;
+  // 2. Flexible Gate Configuration & Generation for ANY Direction/Side
+  const { frameM, handleM, hingeM, gateMeta } = useMemo(() => {
+    if (!wallSegments || wallSegments.length === 0) {
+      return { frameM: [], handleM: [], hingeM: [], gateMeta: [] };
+    }
 
-    const addShutter = (parentPos, parentRotY, offsetX) => {
-      frame.push(composeWorldMatrix(parentPos, parentRotY, [offsetX, 4, 0], [1, 1, 1]));
-      handle.push(composeWorldMatrix(parentPos, parentRotY, [offsetX - 1, 5.5, 0.06], [1, 1, 1]));
-      handle.push(composeWorldMatrix(parentPos, parentRotY, [offsetX + 1, 5.5, 0.06], [1, 1, 1]));
-      hinge.push(composeWorldMatrix(parentPos, parentRotY, [offsetX - 2.5, 0.75, 0.5], [1, 1, 1]));
-      hinge.push(composeWorldMatrix(parentPos, parentRotY, [offsetX + 2.5, 0.75, 0.5], [1, 1, 1]));
+    // Classify wall segments by direction (Left, Right, Top, Bottom)
+    let leftSeg = wallSegments[0];
+    let rightSeg = wallSegments[0];
+    let topSeg = wallSegments[0];
+    let bottomSeg = wallSegments[0];
+
+    wallSegments.forEach((seg) => {
+      if (seg.midX < leftSeg.midX) leftSeg = seg;
+      if (seg.midX > rightSeg.midX) rightSeg = seg;
+      if (seg.midZ < topSeg.midZ) topSeg = seg;
+      if (seg.midZ > bottomSeg.midZ) bottomSeg = seg;
+    });
+
+    const whIdStr = String(data.id || "").toLowerCase();
+    const isWH1 = whIdStr.includes('1') || whIdStr === 'warehouse 1';
+    const isWH2 = whIdStr.includes('2') || whIdStr === 'warehouse 2';
+    const isWH3 = whIdStr.includes('3') || whIdStr === 'warehouse 3';
+    const isWH4 = whIdStr.includes('4') || whIdStr === 'warehouse 4';
+
+    const depthOffset = 0.15;
+    const frame = [], handle = [], hinge = [], meta = [];
+
+    // Helper function to add gates on any segment with custom positions (t: 0 to 1)
+    const addGatesAlongSegment = (seg, count, sideName, customT = null) => {
+      if (!seg || count === 0) return;
+      const rotationY = Math.atan2(seg.nx, seg.nz);
+
+      for (let i = 0; i < count; i++) {
+        const t = customT ? customT[i] : (i + 0.5) / count; 
+        const x = seg.p1.wx + t * (seg.p2.wx - seg.p1.wx);
+        const z = seg.p1.wz + t * (seg.p2.wz - seg.p1.wz);
+        const parentPos = [x + seg.nx * depthOffset, 0, z + seg.nz * depthOffset];
+
+        frame.push(composeWorldMatrix(parentPos, rotationY, [0, 4, 0], [1, 1, 1]));
+        handle.push(composeWorldMatrix(parentPos, rotationY, [-1, 5.5, 0.06], [1, 1, 1]));
+        handle.push(composeWorldMatrix(parentPos, rotationY, [1, 5.5, 0.06], [1, 1, 1]));
+        hinge.push(composeWorldMatrix(parentPos, rotationY, [-2.5, 0.75, 0.5], [1, 1, 1]));
+        hinge.push(composeWorldMatrix(parentPos, rotationY, [2.5, 0.75, 0.5], [1, 1, 1]));
+
+        meta.push({
+          id: `${sideName} Gate ${i + 1}`,
+          position: [parentPos[0], 5, parentPos[2]]
+        });
+      }
     };
 
-    wallSegments.forEach((segment) => {
-      const { midX, midZ, nx, nz, len } = segment;
-      const rotationY = Math.atan2(nx, nz);
-      const parentPos = [midX + nx * depthOffset, 0, midZ + nz * depthOffset];
-      if (len > 18) {
-        addShutter(parentPos, rotationY, -3.5);
-        addShutter(parentPos, rotationY, 3.5);
-      } else if (len > 10) {
-        addShutter(parentPos, rotationY, -2);
-        extraBox.push(composeWorldMatrix(parentPos, rotationY, [3, 2.5, 0], [1, 1, 1]));
-      }
-    });
-    return { frameM: frame, handleM: handle, hingeM: hinge, extraBoxM: extraBox };
-  }, [wallSegments]);
+    // ==========================================
+    // 💡 APNI MARZI SE YAHAN GATE CONFIG SET KAREIN:
+    // ==========================================
+    if (isWH1) {
+      addGatesAlongSegment(leftSeg, 25, 'Left');
+      addGatesAlongSegment(rightSeg, 13, 'Right');
+    } 
+    else if (isWH2) {
+      addGatesAlongSegment(leftSeg, 8, 'Left');
+      addGatesAlongSegment(rightSeg, 15, 'Right');
+    } 
+    else if (isWH3) {
+      addGatesAlongSegment(leftSeg, 4, 'Left');
+    } 
+    else if (isWH4) {
+      // Warehouse 4: Top side ke opposite/right portion par 4 gates
+      // Aap t values change karke position aur direction adjust kar sakte hain (0.0 se 1.0)
+      addGatesAlongSegment(topSeg, 4, 'Top-Left', [0.55, 0.65, 0.75, 0.85]);
+    } 
+    else {
+      addGatesAlongSegment(leftSeg, 4, 'Right');
+    }
+
+    return { frameM: frame, handleM: handle, hingeM: hinge, gateMeta: meta };
+  }, [wallSegments, data.id]);
 
   return (
     <group>
+      {/* Warehouse Base Mesh */}
       <mesh
-        rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.05, 0]} castShadow receiveShadow
+        rotation={[-Math.PI / 2, 0, 0]} 
+        position={[0, 0.05, 0]} 
+        castShadow 
+        receiveShadow
         onPointerOver={(e) => { e.stopPropagation(); setHovered(true); document.body.style.cursor = "pointer"; }}
         onPointerOut={(e) => { e.stopPropagation(); setHovered(false); document.body.style.cursor = "auto"; }}
       >
@@ -2488,13 +2550,41 @@ const Warehouse3D = ({ data, center, isDark }) => {
         <meshStandardMaterial attach="material-0" color={hovered ? (isDark ? "#94A3B8" : "#E2E8F0") : isDark ? "#475569" : "#94A3B8"} roughness={0.7} metalness={0.3} />
         <meshStandardMaterial attach="material-1" color={hovered ? (isDark ? "#94A3B8" : "#E2E8F0") : isDark ? "#64748B" : "#F1F5F9"} roughness={0.9} />
       </mesh>
-      <InstancedStatic geometry={shutterFrameGeo} material={shutterFrameMaterial} matrices={frameM} castShadow receiveShadow />
+
+      {/* Shutter Gates with Instance Hover Support */}
+      <InstancedStatic 
+        geometry={shutterFrameGeo} 
+        material={shutterFrameMaterial} 
+        matrices={frameM} 
+        castShadow 
+        receiveShadow
+        onPointerOver={(e) => {
+          e.stopPropagation();
+          if (e.instanceId !== undefined) setHoveredGateIndex(e.instanceId);
+          document.body.style.cursor = "pointer";
+        }}
+        onPointerOut={(e) => {
+          e.stopPropagation();
+          setHoveredGateIndex(null);
+          document.body.style.cursor = "auto";
+        }}
+      />
       <InstancedStatic geometry={shutterHandleGeo} material={shutterHandleMaterial} matrices={handleM} />
       <InstancedStatic geometry={shutterHingeGeo} material={shutterHingeMaterial} matrices={hingeM} castShadow />
-      <InstancedStatic geometry={shutterExtraBoxGeo} material={shutterExtraBoxMaterial} matrices={extraBoxM} castShadow />
-      {hovered && (
+
+      {/* Warehouse ID Tooltip */}
+      {hovered && hoveredGateIndex === null && (
         <Html position={[0, 15, 0]} center style={{ pointerEvents: "none" }}>
           <div className={`tooltip-3d ${isDark ? "dark" : "light"}`}>{data.id}</div>
+        </Html>
+      )}
+
+      {/* Gate Number Tooltip on Hover */}
+      {hoveredGateIndex !== null && gateMeta[hoveredGateIndex] && (
+        <Html position={gateMeta[hoveredGateIndex].position} center style={{ pointerEvents: "none" }}>
+          <div className={`tooltip-3d ${isDark ? "dark" : "light"}`}>
+            {gateMeta[hoveredGateIndex].id}
+          </div>
         </Html>
       )}
     </group>
@@ -3456,7 +3546,7 @@ function App() {
         </div>
 
         {selectedItem && (
-          <div className="ui-info-card fade-in" style={{ background: isDark ? "rgba(30,41,59,0.95)" : "rgba(255,255,255,0.95)", padding: "20px", borderRadius: "12px", marginTop: "20px", position: "relative" }}>
+          <div className="ui-info-card fade-in" style={{ background: isDark ? "rgba(30,41,59,0.95)" : "rgba(255,255,255,0.95)", padding: "20px", borderRadius: "12px", marginTop: "50px", position: "relative" }}>
             <button
               className="close-btn"
               onClick={() => setSelectedItem(null)}
