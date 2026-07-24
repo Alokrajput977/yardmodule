@@ -978,7 +978,7 @@ const ParkingRoad3D = ({ center, isDark }) => {
   );
 
   const { roadGeometry, dashMatrices, arrowMatrices } = useMemo(() => {
-    const lngScale = Math.cos((center.lat * Math.PI) / 200);
+    const lngScale = Math.cos((center.lat * Math.PI) / 240);
 
     const segments = [];
     PARKING_WALL_LINES.forEach((line, lineIdx) => {
@@ -996,11 +996,15 @@ const ParkingRoad3D = ({ center, isDark }) => {
 
     const buckets = new Map();
     const bucketKey = (bx, bz) => `${bx}_${bz}`;
+    
+    // Coverage reach ko thoda sa bada diya hai taaki koi gap na chute
+    const EFFECTIVE_MAX_REACH = (typeof ROAD_MAX_REACH !== 'undefined' ? ROAD_MAX_REACH : 35) * 1.3;
+
     segments.forEach((seg, idx) => {
-      const minX = Math.min(seg.x1, seg.x2) - ROAD_MAX_REACH;
-      const maxX = Math.max(seg.x1, seg.x2) + ROAD_MAX_REACH;
-      const minZ = Math.min(seg.z1, seg.z2) - ROAD_MAX_REACH;
-      const maxZ = Math.max(seg.z1, seg.z2) + ROAD_MAX_REACH;
+      const minX = Math.min(seg.x1, seg.x2) - EFFECTIVE_MAX_REACH;
+      const maxX = Math.max(seg.x1, seg.x2) + EFFECTIVE_MAX_REACH;
+      const minZ = Math.min(seg.z1, seg.z2) - EFFECTIVE_MAX_REACH;
+      const maxZ = Math.max(seg.z1, seg.z2) + EFFECTIVE_MAX_REACH;
       const bx0 = Math.floor(minX / ROAD_BUCKET), bx1 = Math.floor(maxX / ROAD_BUCKET);
       const bz0 = Math.floor(minZ / ROAD_BUCKET), bz1 = Math.floor(maxZ / ROAD_BUCKET);
       for (let bx = bx0; bx <= bx1; bx++) {
@@ -1053,18 +1057,21 @@ const ParkingRoad3D = ({ center, isDark }) => {
         for (let k = 0; k < cand.length; k++) {
           const seg = segments[cand[k]];
           const d = pointSegDist(px, pz, seg.x1, seg.z1, seg.x2, seg.z2);
-          if (d > ROAD_MAX_REACH) continue;
+          if (d > EFFECTIVE_MAX_REACH) continue;
           const prev = nearestPerLine.get(seg.lineIdx);
           if (prev === undefined || d < prev) nearestPerLine.set(seg.lineIdx, d);
         }
-        if (nearestPerLine.size < 2) continue;
+        
+        // Agar single line ke paas bhi hai toh bhi consider karein taaki beech ke holes fill ho jayein
+        if (nearestPerLine.size < 1) continue;
 
         let d1 = Infinity, d2 = Infinity;
         nearestPerLine.forEach((d) => {
           if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) { d2 = d; }
         });
-        if (d1 < ROAD_WALL_CLEARANCE) continue;
-        if (d2 > ROAD_MAX_REACH) continue;
+        
+        const wallClearance = typeof ROAD_WALL_CLEARANCE !== 'undefined' ? ROAD_WALL_CLEARANCE : 1;
+        if (d1 < wallClearance) continue;
 
         distGrid[idx2d] = d1;
         laneMask[idx2d] = 1;
@@ -1072,7 +1079,9 @@ const ParkingRoad3D = ({ center, isDark }) => {
       }
     }
 
-    const closedMask = morphClose(roadMask, cols, rows, ROAD_HOLE_FILL_ITERATIONS);
+    // Hole fill iterations ko yahan bada diya hai taaki saare beech ke white patches khatam ho jayein
+    const fillIterations = (typeof ROAD_HOLE_FILL_ITERATIONS !== 'undefined' ? ROAD_HOLE_FILL_ITERATIONS : 5) + 10;
+    const closedMask = morphClose(roadMask, cols, rows, fillIterations);
 
     const positions = [];
     const indices = [];
