@@ -45,7 +45,7 @@ const OUTGATE_POLYGON = [[28.507732029353566, 77.2888193076692], [28.50753346046
 const PARKING_COORDS = [[28.508913326434662, 77.28874674032724], [28.509292656765698, 77.28875681637923], [28.509269676368607, 77.28798769296093], [28.508928505264922, 77.28800848008274], [28.50872698399292, 77.28802926720272], [28.50872698399292, 77.28818751752696], [28.50880240720342, 77.28841215252098], [28.50884247576206, 77.28858984885952]];
 
 const GREENERY_COORDS = [
-  [28.50845790390383, 77.28776841227777], [28.50845246317079, 77.28711093642693], [28.508468912519486, 77.28678841362725], [28.508432379293147, 77.28678573141838], [28.508873091198694, 77.28774949751877], [28.508745814583012, 77.28775620304648], [28.50868689017281, 77.28775754415094], [28.50913471486485, 77.28773474537542], [28.509178318746454, 77.28772669874877], [28.509104074288622, 77.28773340427098], [28.509257277080785, 77.28786349140184], [28.507810249414163, 77.2868081762356], [28.507707720008348, 77.28681219954821], [28.507365339995083, 77.28682358116212], [28.507355987855256, 77.28682022830765], [28.50896276885772, 77.28954984856144], [28.509007590876884, 77.28953760687853], [28.50914743545424, 77.28953046589682], [28.509148331893247, 77.28944579425661], [28.50904882711768, 77.28945293523832], [28.508963665298303, 77.28946823734196],[28.509558071785413, 77.28947346894472],[28.509536859164868, 77.28951504318144],[28.50955630406798, 77.28968134014144],[28.509534502207543, 77.28966055302307]
+  [28.50845790390383, 77.28776841227777], [28.50845246317079, 77.28711093642693], [28.508468912519486, 77.28678841362725], [28.508432379293147, 77.28678573141838], [28.508873091198694, 77.28774949751877], [28.508745814583012, 77.28775620304648], [28.50868689017281, 77.28775754415094], [28.50913471486485, 77.28773474537542], [28.509178318746454, 77.28772669874877], [28.509104074288622, 77.28773340427098], [28.509257277080785, 77.28786349140184], [28.507810249414163, 77.2868081762356], [28.507707720008348, 77.28681219954821], [28.507365339995083, 77.28682358116212], [28.507355987855256, 77.28682022830765], [28.50896276885772, 77.28954984856144], [28.509007590876884, 77.28953760687853], [28.50914743545424, 77.28953046589682], [28.509148331893247, 77.28944579425661], [28.50904882711768, 77.28945293523832], [28.508963665298303, 77.28946823734196], [28.509558071785413, 77.28947346894472], [28.509536859164868, 77.28951504318144], [28.50955630406798, 77.28968134014144], [28.509534502207543, 77.28966055302307]
 ];
 
 const PARKING_WALL_LINES = [
@@ -233,8 +233,20 @@ const OCR_BOOM_BARRIER_COORDS = [
 const GUARD_ROOM_COORDS = { lat: 28.507842974160386, lng: 77.28684990563461 };
 const GUARD_ROOM_SCALE = 1.2; // tweak this to resize (0.2 - 0.5 range is "small")
 
+const CISF_BUILDING_POLYGON = [
+  [28.507694261747336, 77.28886187419316],
+  [28.50777793518737, 77.28895239874089],
+  [28.507757900707762, 77.28898123248571],
+  [28.507678352001236, 77.28888735517697],
+];
+const CISF_BUILDING_SCALE = 1.5;
+const CISF_BUILDING_ROTATION_OFFSET_DEG = 90;
 
-
+// DIRECT world-axis shift — map ko top-down se dekho: X = ek seedhi horizontal
+// direction, Z = seedhi vertical direction. Building ko idhar-udhar khiskane
+// ke liye bas inhi 2 numbers ko badlein (+ ya - karke try karein).
+const CISF_BUILDING_OFFSET_X = 3;   // + = right, - = left
+const CISF_BUILDING_OFFSET_Z = -20;   // + = aage (south), - = peeche (north)
 
 useGLTF.preload("/acacia_tree.glb");
 useGLTF.preload("/crane.glb");
@@ -243,6 +255,7 @@ useGLTF.preload("/train.glb");
 useGLTF.preload("/wagon.glb");
 useGLTF.preload("/cell_tower_skyward.glb");
 useGLTF.preload("/guardRoom.glb");
+useGLTF.preload("/cisf.glb");
 
 const TREE_MODELS = [
   "/acacia_tree.glb"
@@ -253,6 +266,19 @@ const SLINE_COLORS = {
   MSC: "#3B82F6",
   default: "#EF4444",
 };
+
+
+const GATE_TOUCH_LINES = [
+  ...AUTO_GATE_LANES,   // main automation lane gantry
+  ...CGO_GATE_LANES,    // domestic gate 1 (CGO)
+  ...CGI_GATE_LANES,    // domestic gate 2 (CGI)
+  ...OCR_GATE_LANES,    // OCR gate
+];
+
+
+
+const GATE_FILL_POLYGONS = [INGATE_POLYGON, OUTGATE_POLYGON];
+
 
 
 
@@ -982,6 +1008,8 @@ function createAsphaltTexture(isDark) {
   return texture;
 }
 
+
+
 // const ParkingRoad3D = ({ center, isDark }) => {
 //   const asphaltTexture = useMemo(() => createAsphaltTexture(isDark), [isDark]);
 //   const asphaltMaterial = useMemo(
@@ -990,10 +1018,15 @@ function createAsphaltTexture(isDark) {
 //   );
 
 //   const { roadGeometry, dashMatrices, arrowMatrices } = useMemo(() => {
-//     const lngScale = Math.cos((center.lat * Math.PI) / 240);
+//     const lngScale = Math.cos((center.lat * Math.PI) / 135);
+
+//     // NEW: wall lines + gate lines dono ek saath "road reference lines" ban
+//     // jaate hain — isliye road ab walls ke saath-saath gates ko bhi hug/touch
+//     // karega.
+//     const ALL_ROAD_REF_LINES = [...PARKING_WALL_LINES, ...GATE_TOUCH_LINES];
 
 //     const segments = [];
-//     PARKING_WALL_LINES.forEach((line, lineIdx) => {
+//     ALL_ROAD_REF_LINES.forEach((line, lineIdx) => {
 //       const pts = line.map((c) => ({
 //         x: (c[1] - center.lng) * LAT_TO_METERS * lngScale,
 //         z: -(c[0] - center.lat) * LAT_TO_METERS,
@@ -1033,6 +1066,15 @@ function createAsphaltTexture(isDark) {
 //       -(c[0] - center.lat) * LAT_TO_METERS,
 //     ]);
 
+//     // NEW: gate polygons (In-Gate / Out-Gate) ko bhi local xz me convert kiya —
+//     // yeh bhi PARKING_COORDS jaise "hamesha road-fill" zones ban jaate hain.
+//     const gateFillPtsList = GATE_FILL_POLYGONS.map((poly) =>
+//       poly.map((c) => [
+//         (c[1] - center.lng) * LAT_TO_METERS * lngScale,
+//         -(c[0] - center.lat) * LAT_TO_METERS,
+//       ])
+//     );
+
 //     let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
 //     segments.forEach((s) => {
 //       minX = Math.min(minX, s.x1, s.x2); maxX = Math.max(maxX, s.x1, s.x2);
@@ -1042,6 +1084,12 @@ function createAsphaltTexture(isDark) {
 //       minX = Math.min(minX, x); maxX = Math.max(maxX, x);
 //       minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
 //     });
+//     // NEW: bounding box me gate polygons ke points bhi shamil karein taaki
+//     // grid un gates ko poori tarah cover kare.
+//     gateFillPtsList.forEach((pts) => pts.forEach(([x, z]) => {
+//       minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+//       minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
+//     }));
 
 //     const cols = Math.ceil((maxX - minX) / ROAD_GRID_STEP) + 1;
 //     const rows = Math.ceil((maxZ - minZ) / ROAD_GRID_STEP) + 1;
@@ -1059,6 +1107,15 @@ function createAsphaltTexture(isDark) {
 
 //         if (isPointInPolygon([px, pz], parkingPts)) {
 //           roadMask[idx2d] = 1;
+//         }
+
+//         // NEW: In-Gate / Out-Gate polygon ke andar bhi hamesha road-fill
+//         // karein — isse road color gate ke through solid rehta hai, koi
+//         // hole nahi banta.
+//         if (!roadMask[idx2d]) {
+//           for (let g = 0; g < gateFillPtsList.length; g++) {
+//             if (isPointInPolygon([px, pz], gateFillPtsList[g])) { roadMask[idx2d] = 1; break; }
+//           }
 //         }
 
 //         const bx = Math.floor(px / ROAD_BUCKET);
@@ -1082,6 +1139,8 @@ function createAsphaltTexture(isDark) {
 //           if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) { d2 = d; }
 //         });
 
+//         // CHANGED: ab road color wall/gate-line ke bahut paas (ROAD_WALL_CLEARANCE)
+//         // tak jaata hai — pehle jitna gap dikhta tha wo yahin se aata tha.
 //         const wallClearance = typeof ROAD_WALL_CLEARANCE !== 'undefined' ? ROAD_WALL_CLEARANCE : 1;
 //         if (d1 < wallClearance) continue;
 
@@ -1190,7 +1249,6 @@ function createAsphaltTexture(isDark) {
 //     </group>
 //   );
 // };
-
 const smallWallSkinGeo = new THREE.BoxGeometry(1, 0.8, 0.3);
 const smallWallPostGeo = new THREE.BoxGeometry(0.2, 1.2, 0.2);
 const smallWallBaseGeo = new THREE.BoxGeometry(1, 0.15, 0.4);
@@ -1297,6 +1355,56 @@ const ParkingWall3D = ({ center, isDark }) => {
 // (geometries + warning-stripe texture) as ParkingWall3D, connecting the given points
 // as one continuous straight-through polyline (point 1 -> 2 -> 3 -> ... in order,
 // no reordering/pairing), so it matches exactly what was asked for.
+
+const CisfBuilding3D = ({ center, isDark }) => {
+  const { scene } = useGLTF("/cisf.glb");
+  const [hovered, setHovered] = useState(false);
+
+  const { cx, cz, angle } = useMemo(
+    () => getOrientedFootprint(CISF_BUILDING_POLYGON, center),
+    [center]
+  );
+
+  const rotationOffsetRad = (CISF_BUILDING_ROTATION_OFFSET_DEG * Math.PI) / 180;
+
+  // Yahan world-axis offset add ho raha hai — seedha simple shift, koi angle-math nahi
+  const finalX = cx + CISF_BUILDING_OFFSET_X;
+  const finalZ = cz + CISF_BUILDING_OFFSET_Z;
+
+  return (
+    <group
+      position={[finalX, 0, finalZ]}
+      rotation={[0, -angle + rotationOffsetRad, 0]}
+      onPointerOver={(e) => { e.stopPropagation(); setHovered(true); document.body.style.cursor = "pointer"; }}
+      onPointerOut={(e) => { e.stopPropagation(); setHovered(false); document.body.style.cursor = "auto"; }}
+    >
+      <Clone
+        object={scene}
+        scale={[CISF_BUILDING_SCALE, CISF_BUILDING_SCALE, CISF_BUILDING_SCALE]}
+        castShadow
+        receiveShadow
+      />
+      {hovered && (
+        <Html position={[0, 3, 0]} center style={{ pointerEvents: "none" }}>
+          <div
+            className={`tooltip-3d ${isDark ? "dark" : "light"}`}
+            style={{
+              display: "flex", alignItems: "center", gap: "8px",
+              fontWeight: "bold", fontSize: "14px",
+              background: "#374151", color: "#fff",
+              border: "2px solid #fff", padding: "8px 14px",
+              borderRadius: "6px", boxShadow: "0 6px 10px rgba(0,0,0,0.4)",
+            }}
+          >
+            <span>🏢</span> CISF Gate Out Building
+          </div>
+        </Html>
+      )}
+    </group>
+  );
+};
+
+
 const SmallYellowBlackWall3D = ({ center, isDark, lines = [SMALL_WALL_COORDS] }) => {
   const [hovered, setHovered] = useState(false);
   const stripeTexture = useMemo(() => createWarningStripeTexture(), []);
@@ -3692,7 +3800,7 @@ function App() {
           <FlagMemorial3D center={center} isDark={isDark} />
         </Suspense>
 
-        {/* <ParkingRoad3D center={center} isDark={isDark} /> */}
+         {/* <ParkingRoad3D center={center} isDark={isDark} />  */}
         <ParkingWall3D center={center} isDark={isDark} />
         <SmallYellowBlackWall3D center={center} isDark={isDark} />
         <SmallYellowBlackWall3D center={center} isDark={isDark} lines={SMALL_WALL_LINES_2} />
@@ -3766,6 +3874,9 @@ function App() {
             engineWorldXShift={-12}
             engineWorldZShift={0}
           />
+        </Suspense>
+        <Suspense fallback={null}>
+          <CisfBuilding3D center={center} isDark={isDark} />
         </Suspense>
 
 
