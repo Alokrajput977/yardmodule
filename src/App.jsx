@@ -3190,7 +3190,7 @@ function App() {
   }, [loading]);
 
   const fetchContainers = useCallback(() => {
-    fetch("/api/api/yard-containers")
+    fetch("https://kycl.in/api/api/yard-containers")
       .then((res) => (res.ok ? res.json() : { data: [] }))
       .then((json) => {
         const dataArray = Array.isArray(json?.data) ? json.data : [];
@@ -3219,7 +3219,7 @@ function App() {
   }, []);
 
   const fetchEquipment = useCallback(() => {
-    fetch("/api/api/equipments")
+    fetch("https://kycl.in/api/api/equipments")
       .then((res) => (res.ok ? res.json() : { data: [] }))
       .then((json) => {
         const dataArray = Array.isArray(json?.data) ? json.data : [];
